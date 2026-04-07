@@ -3,12 +3,24 @@
  * Run once on startup if collections are empty.
  */
 import { Types } from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
 import { Service } from '../models/Service';
 import { Booking } from '../models/Booking';
 import { Feedback } from '../models/Feedback';
 import { Alert } from '../models/Alert';
 import { FarmingCalendar } from '../models/FarmingCalendar';
+
+// ─── Demo accounts (always upserted, never deleted) ─────────────────────────
+// Login at /login with these credentials:
+//   Farmer:           +91 80000 00001 / demo1234
+//   Service Provider: +91 80000 00002 / demo1234
+//   Admin:            +91 80000 00003 / demo1234
+const DEMO_ACCOUNTS = [
+  { phone: '+918000000001', name: 'Demo Farmer',    role: 'Farmer'           as const, password: 'demo1234' },
+  { phone: '+918000000002', name: 'Demo Provider',  role: 'Service_Provider' as const, password: 'demo1234' },
+  { phone: '+918000000003', name: 'Demo Admin',     role: 'Admin'            as const, password: 'demo1234' },
+];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -172,21 +184,42 @@ const CROPS = ['Wheat', 'Rice', 'Tomato', 'Onion', 'Cotton', 'Sugarcane', 'Maize
 
 export async function seedAllData(): Promise<void> {
   try {
+    // ── Always upsert the 3 demo accounts first ───────────────────────────
+    for (const demo of DEMO_ACCOUNTS) {
+      const passwordHash = await bcrypt.hash(demo.password, 10);
+      await User.findOneAndUpdate(
+        { phone: demo.phone },
+        {
+          name: demo.name,
+          phone: demo.phone,
+          role: demo.role,
+          passwordHash,
+          isVerified: true,
+          isActive: true,
+          location: 'Bangalore',
+          languagePreference: 'en',
+          trust_score: 90,
+          alertPreferences: ['weather', 'marketPrice'],
+        },
+        { upsert: true, new: true }
+      );
+    }
+    console.log('[Seed] ✅ Demo accounts upserted (phone: +918000000001/02/03, password: demo1234)');
+
     const userCount = await User.countDocuments();
     if (userCount > 5) {
-      // Check if services also exist — if so, fully seeded already
       const serviceCount = await Service.countDocuments();
       if (serviceCount > 10) {
-        console.log('[Seed] Data already exists, skipping seed.');
+        console.log('[Seed] Data already exists, skipping bulk seed.');
         return;
       }
     }
 
     console.log('[Seed] Clearing existing data and re-seeding...');
 
-    // Clear all collections before re-seeding to avoid duplicate key errors
+    // Clear non-demo users and all other collections
     await Promise.all([
-      User.deleteMany({ role: { $in: ['Farmer', 'Service_Provider'] } }),
+      User.deleteMany({ role: { $in: ['Farmer', 'Service_Provider'] }, phone: { $nin: DEMO_ACCOUNTS.map(d => d.phone) } }),
       Service.deleteMany({}),
       Booking.deleteMany({}),
       Feedback.deleteMany({}),
@@ -205,6 +238,7 @@ export async function seedAllData(): Promise<void> {
       languagePreference: pick(LANGUAGES),
       trust_score: rnd(60, 95),
       isActive: true,
+      isVerified: true,
       alertPreferences: ['weather', 'marketPrice'],
     }));
     const farmers = await User.insertMany(farmerDocs);
@@ -219,6 +253,7 @@ export async function seedAllData(): Promise<void> {
       languagePreference: pick(LANGUAGES),
       trust_score: rnd(70, 98),
       isActive: true,
+      isVerified: true,
       alertPreferences: ['weather'],
     }));
     const providers = await User.insertMany(providerDocs);
@@ -227,7 +262,7 @@ export async function seedAllData(): Promise<void> {
     // ── 3. Create 1 Admin ─────────────────────────────────────────────────
     await User.findOneAndUpdate(
       { phone: '+919999999999' },
-      { name: 'Platform Admin', phone: '+919999999999', role: 'Admin', location: 'Bangalore', languagePreference: 'en', trust_score: 100, isActive: true },
+      { name: 'Platform Admin', phone: '+919999999999', role: 'Admin', location: 'Bangalore', languagePreference: 'en', trust_score: 100, isActive: true, isVerified: true },
       { upsert: true }
     );
 
