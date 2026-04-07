@@ -9,23 +9,32 @@ import { User } from '../models/User';
 
 let initialized = false;
 
-function getFirebaseApp(): admin.app.App {
+function getFirebaseApp(): admin.app.App | null {
   if (!initialized) {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
-    if (projectId && clientEmail && privateKey) {
-      admin.initializeApp({
-        credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-      });
+    // Only initialize if real credentials are provided
+    if (projectId && clientEmail && privateKey &&
+        !projectId.startsWith('your_') && !clientEmail.startsWith('your_')) {
+      try {
+        admin.initializeApp({
+          credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+        });
+      } catch (err) {
+        console.warn('[NotificationService] Firebase init failed — push notifications disabled:', err);
+        initialized = true;
+        return null;
+      }
     } else {
-      // Fallback: use application default credentials (e.g., in CI / emulator)
-      admin.initializeApp();
+      console.log('[NotificationService] No Firebase credentials — push notifications disabled in dev mode');
+      initialized = true;
+      return null;
     }
     initialized = true;
   }
-  return admin.app();
+  try { return admin.app(); } catch { return null; }
 }
 
 /**
@@ -47,6 +56,10 @@ export async function sendPushNotification(
     }
 
     const app = getFirebaseApp();
+    if (!app) {
+      console.log(`[NotificationService] Firebase not configured — skipping push to userId=${userId}`);
+      return;
+    }
     await app.messaging().send({
       token: user.fcmToken,
       notification: { title, body },
@@ -84,6 +97,10 @@ export async function sendMulticastNotification(
     }
 
     const app = getFirebaseApp();
+    if (!app) {
+      console.log(`[NotificationService] Firebase not configured — skipping multicast`);
+      return;
+    }
     const response = await app.messaging().sendEachForMulticast({
       tokens,
       notification: { title, body },
