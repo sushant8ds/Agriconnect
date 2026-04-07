@@ -2,7 +2,6 @@
  * Comprehensive seed script — populates all collections with realistic demo data.
  * Run once on startup if collections are empty.
  */
-import { Types } from 'mongoose';
 import { User } from '../models/User';
 import { Service } from '../models/Service';
 import { Booking } from '../models/Booking';
@@ -25,7 +24,7 @@ const DEMO_ACCOUNTS = [
 
 function rnd(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function rndFloat(min: number, max: number) { return parseFloat((Math.random() * (max - min) + min).toFixed(2)); }
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function pick<T>(arr: readonly T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
 function daysAgo(n: number) { return new Date(Date.now() - n * 86400000); }
 function daysFromNow(n: number) { return new Date(Date.now() + n * 86400000); }
 

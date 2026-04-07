@@ -33,6 +33,11 @@ router.post(
 
     const farmerId = req.user!.userId;
 
+    if (!calendarQueue) {
+      res.status(503).json({ error: 'Calendar service unavailable (Redis not configured)' });
+      return;
+    }
+
     await calendarQueue.add('generate-calendar', {
       type: 'generate',
       farmerId,

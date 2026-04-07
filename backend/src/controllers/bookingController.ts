@@ -189,8 +189,10 @@ export async function updateBookingStatus(req: Request, res: Response): Promise<
       'Your booking is complete. Please rate your experience.'
     );
     // Requirement 19.2: recalculate trust scores asynchronously
-    await trustScoreQueue.add('recalculate', { userId: farmerId });
-    await trustScoreQueue.add('recalculate', { userId: providerId });
+    if (trustScoreQueue) {
+      await trustScoreQueue.add('recalculate', { userId: farmerId });
+      await trustScoreQueue.add('recalculate', { userId: providerId });
+    }
   } else if (newStatus === 'Cancelled') {
     // Requirement 3.5: notify the OTHER party
     const notifyUserId = callerKey === 'farmer' ? providerId : farmerId;
@@ -200,8 +202,10 @@ export async function updateBookingStatus(req: Request, res: Response): Promise<
       : 'A booking has been cancelled.';
     await sendPushNotification(notifyUserId, notifyTitle, notifyBody);
     // Requirement 19.2: recalculate trust scores asynchronously
-    await trustScoreQueue.add('recalculate', { userId: farmerId });
-    await trustScoreQueue.add('recalculate', { userId: providerId });
+    if (trustScoreQueue) {
+      await trustScoreQueue.add('recalculate', { userId: farmerId });
+      await trustScoreQueue.add('recalculate', { userId: providerId });
+    }
   }
 
   res.status(200).json({ booking });

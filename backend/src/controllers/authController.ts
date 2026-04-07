@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { HydratedDocument } from 'mongoose';
+import { Types, HydratedDocument } from 'mongoose';
 import { User, IUser, UserRole, LanguagePreference } from '../models/User';
 import { generateAndSendOtp, verifyOtp as verifyOtpService } from '../services/otpService';
 import { generateToken, generateRefreshToken, JwtPayload } from '../middleware/auth';
@@ -271,7 +271,7 @@ async function seedProviderDemoData(providerId: string): Promise<void> {
     if (services.length === 0) {
       const serviceTypes = ['Transport', 'Irrigation', 'Labor'] as const;
       services = await Service.insertMany(serviceTypes.map((type, i) => ({
-        provider_id: providerId, type, category: type,
+        provider_id: new Types.ObjectId(providerId), type, category: type,
         price: [1200, 7500, 450][i],
         description: ['Tractor-trolley transport to mandi', 'Drip irrigation installation', 'Experienced weeding team'][i],
         availability: true, status: 'active',

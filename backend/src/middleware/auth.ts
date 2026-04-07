@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 export interface JwtPayload {
   userId: string;
@@ -41,14 +41,12 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 }
 
 export function generateToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
-  });
+  const opts: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '15m') as SignOptions['expiresIn'] };
+  return jwt.sign(payload as object, JWT_SECRET, opts);
 }
 
 export function generateRefreshToken(payload: JwtPayload): string {
   const refreshSecret = process.env.JWT_REFRESH_SECRET || 'dev_refresh_secret';
-  return jwt.sign(payload, refreshSecret, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
-  });
+  const opts: SignOptions = { expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as SignOptions['expiresIn'] };
+  return jwt.sign(payload as object, refreshSecret, opts);
 }
