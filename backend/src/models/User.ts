@@ -6,6 +6,8 @@ export type LanguagePreference = 'en' | 'hi' | 'kn' | 'mr' | 'te' | 'ta' | 'ml';
 export interface IUser extends Document {
   name: string;
   phone: string;
+  passwordHash?: string;
+  isVerified: boolean;       // true after OTP confirmed at registration
   role: UserRole;
   location: string;
   languagePreference: LanguagePreference;
@@ -23,11 +25,9 @@ const UserSchema = new Schema<IUser>(
   {
     name: { type: String, default: '' },
     phone: { type: String, required: true, unique: true, index: true },
-    role: {
-      type: String,
-      enum: ['Farmer', 'Service_Provider', 'Admin'],
-      required: true,
-    },
+    passwordHash: { type: String },
+    isVerified: { type: Boolean, default: false },
+    role: { type: String, enum: ['Farmer', 'Service_Provider', 'Admin'], required: true },
     location: { type: String, default: '' },
     languagePreference: {
       type: String,
