@@ -35,6 +35,7 @@ export default function ServicesPage() {
   const [filtered, setFiltered] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState('');
   const [booked, setBooked] = useState<Record<string, boolean>>({});
   const [bookingDate, setBookingDate] = useState<Record<string, string>>({});
   const [timeSlot, setTimeSlot] = useState<Record<string, string>>({});
@@ -68,7 +69,21 @@ export default function ServicesPage() {
 
   function filterCategory(cat: string) {
     setActiveCategory(cat);
-    setFiltered(cat === 'All' ? services : services.filter(s => s.type === cat || s.category === cat));
+    applyFilters(cat, searchQuery);
+  }
+
+  function applyFilters(cat: string, query: string) {
+    let result = services;
+    if (cat !== 'All') result = result.filter(s => s.type === cat || s.category === cat);
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      result = result.filter(s =>
+        s.description?.toLowerCase().includes(q) ||
+        (CATEGORY_LABELS[s.type] ?? s.type).toLowerCase().includes(q) ||
+        s.providerName?.toLowerCase().includes(q)
+      );
+    }
+    setFiltered(result);
   }
 
   async function book(serviceId: string) {
@@ -116,6 +131,22 @@ export default function ServicesPage() {
           {offlineMsg}
         </div>
       )}
+
+      {/* Search bar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <input
+          style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', fontSize: 14, outline: 'none' }}
+          placeholder="🔍 Search services (e.g. tractor, irrigation, labour...)"
+          value={searchQuery}
+          onChange={e => { setSearchQuery(e.target.value); applyFilters(activeCategory, e.target.value); }}
+        />
+        {searchQuery && (
+          <button style={{ background: '#e63946', color: '#fff', border: 'none', borderRadius: 10, padding: '0 14px', cursor: 'pointer', fontSize: 13 }}
+            onClick={() => { setSearchQuery(''); applyFilters(activeCategory, ''); }}>
+            ✕
+          </button>
+        )}
+      </div>
 
       {filtered.length === 0 && (
         <div style={styles.empty}>
