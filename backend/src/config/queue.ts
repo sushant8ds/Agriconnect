@@ -1,19 +1,30 @@
-import { Queue, Worker, QueueEvents } from 'bullmq';
-import { redis } from './redis';
+import { Queue } from 'bullmq';
 
-const connection = { host: redis.options.host || 'localhost', port: redis.options.port || 6379 };
+const REDIS_URL = process.env.REDIS_URL || '';
 
-// Queue definitions
-export const notificationQueue = new Queue('notifications', { connection });
-export const trustScoreQueue = new Queue('trust-score', { connection });
-export const pricePredictionQueue = new Queue('price-prediction', { connection });
-export const calendarQueue = new Queue('farming-calendar', { connection });
-export const bookingAutoCancel = new Queue('booking-auto-cancel', { connection });
+// Parse Redis URL into host/port for BullMQ
+function getConnection() {
+  if (!REDIS_URL) return null;
+  try {
+    const url = new URL(REDIS_URL);
+    return {
+      host: url.hostname,
+      port: parseInt(url.port) || 6379,
+      password: url.password || undefined,
+      tls: url.protocol === 'rediss:' ? {} : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
 
-export const queues = {
-  notificationQueue,
-  trustScoreQueue,
-  pricePredictionQueue,
-  calendarQueue,
-  bookingAutoCancel,
-};
+const connection = getConnection();
+
+// Only create queues if Redis is available
+export const notificationQueue   = connection ? new Queue('notifications',      { connection }) : null;
+export const trustScoreQueue     = connection ? new Queue('trust-score',        { connection }) : null;
+export const pricePredictionQueue = connection ? new Queue('price-prediction',  { connection }) : null;
+export const calendarQueue       = connection ? new Queue('farming-calendar',   { connection }) : null;
+export const bookingAutoCancel   = connection ? new Queue('booking-auto-cancel',{ connection }) : null;
+
+export const redisConnection = connection;

@@ -5,12 +5,11 @@
  */
 
 import { Worker } from 'bullmq';
-import { redis } from '../config/redis';
+import { redisConnection } from '../config/queue';
 import { calculateTrustScore } from '../services/trustScoreService';
 
-const connection = { host: redis.options.host || 'localhost', port: redis.options.port || 6379 };
-
-export function startTrustScoreWorker(): Worker {
+export function startTrustScoreWorker(): Worker | null {
+  if (!redisConnection) return null;
   const worker = new Worker(
     'trust-score',
     async (job) => {
@@ -18,7 +17,7 @@ export function startTrustScoreWorker(): Worker {
       const score = await calculateTrustScore(userId);
       console.log(`[TrustScoreWorker] Job ${job.id} completed. User ${userId} score: ${score}`);
     },
-    { connection }
+    { connection: redisConnection }
   );
 
   worker.on('failed', (job, err) => {

@@ -4,16 +4,12 @@
  */
 
 import { Worker } from 'bullmq';
-import { redis } from '../config/redis';
+import { redisConnection } from '../config/queue';
 import { Booking } from '../models/Booking';
 import { sendPushNotification } from '../services/notificationService';
 
-const connection = {
-  host: redis.options.host || 'localhost',
-  port: redis.options.port || 6379,
-};
-
-export function startAutoCancelWorker(): Worker {
+export function startAutoCancelWorker(): Worker | null {
+  if (!redisConnection) return null;
   const worker = new Worker(
     'booking-auto-cancel',
     async (job) => {
@@ -45,7 +41,7 @@ export function startAutoCancelWorker(): Worker {
 
       console.log(`[AutoCancelWorker] Cancelled ${cancelledCount} pending booking(s).`);
     },
-    { connection }
+    { connection: redisConnection }
   );
 
   worker.on('failed', (job, err) => {

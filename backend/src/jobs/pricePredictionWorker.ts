@@ -5,12 +5,11 @@
  */
 
 import { Worker } from 'bullmq';
-import { redis } from '../config/redis';
+import { redisConnection } from '../config/queue';
 import { updatePricePredictions } from '../services/pricePredictionService';
 
-const connection = { host: redis.options.host || 'localhost', port: redis.options.port || 6379 };
-
-export function startPricePredictionWorker(): Worker {
+export function startPricePredictionWorker(): Worker | null {
+  if (!redisConnection) return null;
   const worker = new Worker(
     'price-prediction',
     async (job) => {
@@ -18,7 +17,7 @@ export function startPricePredictionWorker(): Worker {
       await updatePricePredictions();
       console.log(`[PricePredictionWorker] Job ${job.id} completed.`);
     },
-    { connection }
+    { connection: redisConnection }
   );
 
   worker.on('failed', (job, err) => {

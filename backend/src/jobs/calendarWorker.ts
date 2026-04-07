@@ -5,16 +5,15 @@
  */
 
 import { Worker } from 'bullmq';
-import { redis } from '../config/redis';
+import { redisConnection } from '../config/queue';
 import { generateCalendar, refreshCalendarIfWeatherChanged } from '../services/calendarService';
 import { sendPushNotification } from '../services/notificationService';
 import { FarmingCalendar } from '../models/FarmingCalendar';
 
-const connection = { host: redis.options.host || 'localhost', port: redis.options.port || 6379 };
-
 const MS_IN_24H = 24 * 60 * 60 * 1000;
 
-export function startCalendarWorker(): Worker {
+export function startCalendarWorker(): Worker | null {
+  if (!redisConnection) return null;
   const worker = new Worker(
     'farming-calendar',
     async (job) => {
@@ -66,10 +65,10 @@ export function startCalendarWorker(): Worker {
         }
 
         case '__batch_notify__': {
-          // Enqueue individual notify jobs for all farmers with a calendar
           const { FarmingCalendar: FC } = await import('../models/FarmingCalendar');
           const calendars = await FC.find({}).select('farmer_id').lean();
           const { calendarQueue } = await import('../config/queue');
+          if (!calendarQueue) break;
           for (const cal of calendars) {
             await calendarQueue.add('notify-farmer', {
               type: 'notify',
@@ -84,7 +83,7 @@ export function startCalendarWorker(): Worker {
           console.warn(`[CalendarWorker] Unknown job type: ${type}`);
       }
     },
-    { connection }
+    { connection: redisConnection }
   );
 
   worker.on('failed', (job, err) => {
