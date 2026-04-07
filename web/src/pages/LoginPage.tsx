@@ -12,7 +12,7 @@ const ROLES: { value: Role; icon: string; label: string; color: string }[] = [
 ];
 
 export default function LoginPage() {
-  const [splashDone, setSplashDone] = useState(false);
+  const [splashDone, setSplashDone] = useState(true); // Skip splash in production
   const [screen, setScreen] = useState<Screen>('login');
   const [role, setRole] = useState<Role>('Farmer');
   const [phone, setPhone] = useState('');
