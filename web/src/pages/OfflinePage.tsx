@@ -4,7 +4,7 @@ import {
   getLastSync, syncQueue, clearSyncedItems, removeFromQueue, QueuedBooking,
   cacheServices, cacheBookings, cacheAlerts,
 } from '../store/offlineStore';
-import axios from 'axios';
+import api from '../api/axios';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f4a261', syncing: '#4cc9f0', synced: '#52b788', failed: '#e63946',

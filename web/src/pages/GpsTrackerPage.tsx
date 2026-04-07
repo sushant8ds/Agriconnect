@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 
 const BELGAUM = { lat: 15.8497, lng: 74.4977 };
 

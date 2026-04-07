@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 import SplashAnimation from '../components/SplashAnimation';
 
 type Role = 'Farmer' | 'Service_Provider' | 'Admin';
@@ -35,7 +35,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      const res = await axios.post('/api/auth/login', { phone, password });
+      const res = await api.post('/api/auth/login', { phone, password });
       localStorage.clear();
       localStorage.setItem('token', res.data.accessToken);
       localStorage.setItem('user', JSON.stringify(res.data.user));
@@ -53,7 +53,7 @@ export default function LoginPage() {
     if (password !== confirmPassword) { setError('Passwords do not match'); return; }
     setLoading(true); setError('');
     try {
-      const res = await axios.post('/api/auth/register', { phone, password, role, name });
+      const res = await api.post('/api/auth/register', { phone, password, role, name });
       setDevOtp(res.data.devOtp ?? '');
       setSuccess('OTP sent to your phone.');
       setScreen('verify');
@@ -66,7 +66,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      const res = await axios.post('/api/auth/verify-phone', { phone, otp });
+      const res = await api.post('/api/auth/verify-phone', { phone, otp });
       localStorage.clear();
       localStorage.setItem('token', res.data.accessToken);
       localStorage.setItem('user', JSON.stringify(res.data.user));
@@ -83,7 +83,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      const res = await axios.post('/api/auth/forgot-password', { phone });
+      const res = await api.post('/api/auth/forgot-password', { phone });
       setDevOtp(res.data.devOtp ?? '');
       setSuccess(res.data.message);
       setScreen('reset');
@@ -96,7 +96,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true); setError('');
     try {
-      await axios.post('/api/auth/reset-password', { phone, otp, newPassword });
+      await api.post('/api/auth/reset-password', { phone, otp, newPassword });
       setSuccess('Password reset! Please login.');
       reset('login');
     } catch (e: any) {

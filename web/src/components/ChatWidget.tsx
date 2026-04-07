@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 
 interface Message { role: 'user' | 'bot'; text: string; }
 
