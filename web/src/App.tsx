@@ -11,6 +11,7 @@ import AdminPanelPage from './pages/AdminPanelPage';
 import CropDoctorPage from './pages/CropDoctorPage';
 import GpsTrackerPage from './pages/GpsTrackerPage';
 import OfflinePage from './pages/OfflinePage';
+import IrrigationAdvisorPage from './pages/IrrigationAdvisorPage';
 import OfflineIndicator from './components/OfflineIndicator';
 import ChatWidget from './components/ChatWidget';
 
@@ -112,6 +113,7 @@ function FarmerBottomNav() {
     { href: '/dashboard', icon: '🏠', label: 'Home' },
     { href: '/services', icon: '🛒', label: 'Services' },
     { href: '/bookings', icon: '📋', label: 'Bookings' },
+    { href: '/irrigation', icon: '💧', label: 'Irrigation' },
     { href: '/crop-doctor', icon: '🌿', label: 'Crop Doctor' },
     { href: '/gps-tracker', icon: '📍', label: 'GPS' },
     { href: '/offline', icon: '📦', label: 'Offline' },
@@ -173,6 +175,7 @@ export default function App() {
         <Route path="/crop-doctor" element={<PrivateRoute roles={['Farmer']}><FarmerLayout><CropDoctorPage /></FarmerLayout></PrivateRoute>} />
         <Route path="/gps-tracker" element={<PrivateRoute roles={['Farmer']}><FarmerLayout><GpsTrackerPage /></FarmerLayout></PrivateRoute>} />
         <Route path="/offline" element={<PrivateRoute roles={['Farmer']}><FarmerLayout><OfflinePage /></FarmerLayout></PrivateRoute>} />
+        <Route path="/irrigation" element={<PrivateRoute roles={['Farmer']}><FarmerLayout><IrrigationAdvisorPage /></FarmerLayout></PrivateRoute>} />
 
         {/* Provider & Admin — simple layout */}
         <Route path="/provider" element={<PrivateRoute roles={['Service_Provider']}><div style={{ maxWidth: 1000, margin: '24px auto', padding: '0 16px' }}><ProviderDashboardPage /></div></PrivateRoute>} />
