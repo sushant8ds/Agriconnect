@@ -3,7 +3,6 @@
  * Run once on startup if collections are empty.
  */
 import { Types } from 'mongoose';
-import bcrypt from 'bcryptjs';
 import { User } from '../models/User';
 import { Service } from '../models/Service';
 import { Booking } from '../models/Booking';
@@ -12,14 +11,14 @@ import { Alert } from '../models/Alert';
 import { FarmingCalendar } from '../models/FarmingCalendar';
 
 // ─── Demo accounts (always upserted, never deleted) ─────────────────────────
-// Login at /login with these credentials:
-//   Farmer:           +91 80000 00001 / demo1234
-//   Service Provider: +91 80000 00002 / demo1234
-//   Admin:            +91 80000 00003 / demo1234
+// Register these phone numbers on the app to set your own password:
+//   Farmer:           +918000000001
+//   Service Provider: +918000000002
+//   Admin:            +918000000003
 const DEMO_ACCOUNTS = [
-  { phone: '+918000000001', name: 'Demo Farmer',    role: 'Farmer'           as const, password: 'demo1234' },
-  { phone: '+918000000002', name: 'Demo Provider',  role: 'Service_Provider' as const, password: 'demo1234' },
-  { phone: '+918000000003', name: 'Demo Admin',     role: 'Admin'            as const, password: 'demo1234' },
+  { phone: '+918000000001', name: 'Demo Farmer',   role: 'Farmer'           as const },
+  { phone: '+918000000002', name: 'Demo Provider', role: 'Service_Provider' as const },
+  { phone: '+918000000003', name: 'Demo Admin',    role: 'Admin'            as const },
 ];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -186,25 +185,24 @@ export async function seedAllData(): Promise<void> {
   try {
     // ── Always upsert the 3 demo accounts first ───────────────────────────
     for (const demo of DEMO_ACCOUNTS) {
-      const passwordHash = await bcrypt.hash(demo.password, 10);
-      await User.findOneAndUpdate(
-        { phone: demo.phone },
-        {
+      const existing = await User.findOne({ phone: demo.phone });
+      if (!existing) {
+        // Create fresh — no password yet, user will register to set one
+        await User.create({
           name: demo.name,
           phone: demo.phone,
           role: demo.role,
-          passwordHash,
-          isVerified: true,
+          isVerified: false,
           isActive: true,
           location: 'Bangalore',
           languagePreference: 'en',
           trust_score: 90,
           alertPreferences: ['weather', 'marketPrice'],
-        },
-        { upsert: true, new: true }
-      );
+        });
+      }
+      // If already exists (registered by user), leave it untouched
     }
-    console.log('[Seed] ✅ Demo accounts upserted (phone: +918000000001/02/03, password: demo1234)');
+    console.log('[Seed] ✅ Demo accounts ready — register at +918000000001/02/03 to set your password');
 
     const userCount = await User.countDocuments();
     if (userCount > 5) {
