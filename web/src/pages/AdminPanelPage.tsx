@@ -63,22 +63,25 @@ export default function AdminPanelPage() {
   }, []);
 
   async function approveService(id: string) {
+    const freshToken = localStorage.getItem('token');
     try {
-      await axios.patch(`/api/admin/services/${id}`, { status: 'active' }, { headers });
+      await api.patch(`/api/admin/services/${id}`, { status: 'active' }, { headers: { Authorization: `Bearer ${freshToken}` } });
       setServices(s => s.map(x => x.id === id ? { ...x, status: 'active' } : x));
     } catch { alert('Failed to update service'); }
   }
 
   async function rejectService(id: string) {
+    const freshToken = localStorage.getItem('token');
     try {
-      await axios.patch(`/api/admin/services/${id}`, { status: 'rejected' }, { headers });
+      await api.patch(`/api/admin/services/${id}`, { status: 'rejected' }, { headers: { Authorization: `Bearer ${freshToken}` } });
       setServices(s => s.map(x => x.id === id ? { ...x, status: 'rejected' } : x));
     } catch { alert('Failed to update service'); }
   }
 
   async function handleReview(id: string, action: 'approve' | 'remove') {
+    const freshToken = localStorage.getItem('token');
     try {
-      await axios.patch(`/api/admin/reviews/${id}`, { action }, { headers });
+      await api.patch(`/api/admin/reviews/${id}`, { action }, { headers: { Authorization: `Bearer ${freshToken}` } });
       setReviews(r => r.filter(x => x.id !== id));
     } catch { alert('Failed to update review'); }
   }

@@ -94,3 +94,47 @@ export async function getAllBookings(req: Request, res: Response): Promise<void>
   if (error) { res.status(500).json({ error: 'Failed to fetch bookings' }); return; }
   res.json({ bookings: data });
 }
+
+/**
+ * GET /admin/knowledge — list all custom knowledge entries
+ * POST /admin/knowledge — add new entry
+ * DELETE /admin/knowledge/:id — remove entry
+ */
+import { KnowledgeEntry } from '../models/KnowledgeEntry';
+
+export async function getKnowledge(_req: Request, res: Response): Promise<void> {
+  try {
+    const entries = await KnowledgeEntry.find({ isActive: true }).sort({ createdAt: -1 });
+    res.json({ entries });
+  } catch { res.status(500).json({ error: 'Failed to fetch knowledge' }); }
+}
+
+export async function addKnowledge(req: Request, res: Response): Promise<void> {
+  try {
+    const { keywords, disease, crop, severity, treatment, prevention } = req.body;
+    if (!keywords || !disease || !treatment || !prevention) {
+      res.status(400).json({ error: 'keywords, disease, treatment, prevention are required' });
+      return;
+    }
+    const entry = await KnowledgeEntry.create({
+      keywords: Array.isArray(keywords) ? keywords : keywords.split(',').map((k: string) => k.trim()),
+      disease, crop: crop || 'All Crops', severity: severity || 'Medium', treatment, prevention,
+      addedBy: 'Admin',
+    });
+    res.status(201).json({ entry });
+  } catch (err) { res.status(500).json({ error: 'Failed to add knowledge entry' }); }
+}
+
+export async function deleteKnowledge(req: Request, res: Response): Promise<void> {
+  try {
+    await KnowledgeEntry.findByIdAndUpdate(req.params.id, { isActive: false });
+    res.json({ message: 'Entry removed' });
+  } catch { res.status(500).json({ error: 'Failed to remove entry' }); }
+}
+
+export async function getPublicKnowledge(_req: Request, res: Response): Promise<void> {
+  try {
+    const entries = await KnowledgeEntry.find({ isActive: true }).lean();
+    res.json({ entries });
+  } catch { res.status(500).json({ error: 'Failed to fetch knowledge' }); }
+}

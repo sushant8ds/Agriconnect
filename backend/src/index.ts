@@ -11,8 +11,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
+
+// CORS — wildcard is forbidden in production (credentials: true + '*' is rejected by browsers)
+const corsOrigin: string | string[] = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',')
+  : process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('CORS_ORIGIN must be set in production'); })()
+    : '*';
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+  origin: corsOrigin,
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -24,7 +32,6 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`KisanServe API running on port ${PORT}`);
-  console.log(`Supabase: ${process.env.SUPABASE_URL}`);
 });
 
 export default app;

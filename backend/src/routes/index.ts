@@ -11,6 +11,7 @@ import cropDoctorRoutes from './cropDoctor';
 import recommendationRoutes from './recommendations';
 import calendarRoutes from './calendar';
 import statsRoutes from './stats';
+import { getPublicKnowledge } from '../controllers/adminController';
 
 const router = Router();
 

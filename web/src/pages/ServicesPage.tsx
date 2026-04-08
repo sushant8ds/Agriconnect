@@ -92,8 +92,14 @@ export default function ServicesPage() {
 
   async function book(serviceId: string) {
     const token = localStorage.getItem('token');
-    const date = bookingDate[serviceId] || new Date(Date.now() + 86400000).toISOString();
+    const date = bookingDate[serviceId];
     const slot = timeSlot[serviceId] || '10:00-12:00';
+
+    // Fix 1: date is required
+    if (!date) {
+      alert('Please select a date before booking.');
+      return;
+    }
 
     if (!isOnline()) {
       enqueueBooking({ service_id: serviceId, date, timeSlot: slot });
@@ -202,10 +208,10 @@ export default function ServicesPage() {
             )}
 
             <button
-              style={booked[s.id] ? styles.bookedBtn : styles.bookBtn}
+              style={booked[s.id] ? styles.bookedBtn : (!bookingDate[s.id] ? styles.disabledBtn : styles.bookBtn)}
               onClick={() => book(s.id)}
-              disabled={booked[s.id]}>
-              {booked[s.id] ? '✓ Booked Successfully' : 'Book Now'}
+              disabled={booked[s.id] || !bookingDate[s.id]}>
+              {booked[s.id] ? '✓ Booked Successfully' : !bookingDate[s.id] ? 'Select a date first' : 'Book Now'}
             </button>
           </div>
         ))}
@@ -230,5 +236,6 @@ const styles: Record<string, React.CSSProperties> = {
   input: { width: '100%', padding: '8px', borderRadius: 6, border: '1px solid #ccc', fontSize: 13, boxSizing: 'border-box' },
   bookBtn: { background: '#2d6a4f', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', cursor: 'pointer', fontWeight: 600, fontSize: 14, marginTop: 4 },
   bookedBtn: { background: '#52b788', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 600, fontSize: 14, marginTop: 4 },
+  disabledBtn: { background: '#ccc', color: '#888', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 600, fontSize: 14, marginTop: 4, cursor: 'not-allowed' },
   empty: { background: '#fff3cd', borderRadius: 8, padding: 16, color: '#856404' },
 };
