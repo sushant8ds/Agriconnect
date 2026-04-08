@@ -80,24 +80,28 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
   user.otpAttempts = 0;
   await user.save();
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' || !process.env.TWILIO_ACCOUNT_SID) {
     console.log(`[DEV] Password reset OTP for ${normalizedPhone}: ${otp}`);
-  } else {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const twilio = require('twilio');
-      const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-      await client.messages.create({
-        body: `Your KisanServe password reset OTP is: ${otp}. Valid for 10 minutes.`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: normalizedPhone,
-      });
-    } catch (err) {
-      console.error('SMS send failed:', err);
-    }
+    // Return OTP in response when SMS is not configured
+    res.json({ message: 'OTP generated (SMS not configured). Use the OTP below.', otp });
+    return;
   }
 
-  res.json({ message: 'If this phone is registered, an OTP has been sent.' });
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const twilio = require('twilio');
+    const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    await client.messages.create({
+      body: `Your KisanServe password reset OTP is: ${otp}. Valid for 10 minutes.`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: normalizedPhone,
+    });
+    res.json({ message: 'OTP sent to your phone. Valid for 10 minutes.' });
+  } catch (err) {
+    console.error('SMS send failed:', err);
+    // Fall back to showing OTP if SMS fails
+    res.json({ message: 'SMS failed. Use this OTP:', otp });
+  }
 }
 
 /**

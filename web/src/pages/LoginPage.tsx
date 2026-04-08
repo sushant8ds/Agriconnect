@@ -50,8 +50,13 @@ export default function LoginPage() {
         navigate(r === 'Service_Provider' ? '/provider' : r === 'Admin' ? '/admin' : '/dashboard', { replace: true });
 
       } else if (mode === 'forgot') {
-        await api.post('/api/auth/forgot-password', { phone: form.phone });
-        setSuccess('OTP sent! Check your phone (or server logs in dev mode).');
+        const res = await api.post('/api/auth/forgot-password', { phone: form.phone });
+        const data = res.data;
+        if (data.otp) {
+          setSuccess(`OTP generated: ${data.otp} (Twilio not configured — use this code)`);
+        } else {
+          setSuccess('OTP sent to your phone! Valid for 10 minutes.');
+        }
         setMode('reset');
 
       } else if (mode === 'reset') {
