@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
 
 interface Booking {
-  id: string;
+  _id?: string;
+  id?: string;
   farmer_id?: { name: string; phone: string };
   service_id?: { type: string; price: number };
   status: string;
@@ -29,7 +30,8 @@ const TYPE_LABELS: Record<string, string> = {
 const SERVICE_TYPES = ['Transport', 'Irrigation', 'FertilizerSupply', 'Labor', 'SoilTesting', 'EquipmentRental'];
 
 interface Service {
-  id: string;
+  _id?: string;
+  id?: string;
   type: string;
   description: string;
   price: number;
@@ -94,6 +96,7 @@ export default function ProviderDashboardPage() {
   }
 
   function BookingCard({ b, showActions }: { b: Booking; showActions?: boolean }) {
+    const bid = b._id ?? b.id ?? '';
     return (
       <div style={styles.bookingCard}>
         <div style={styles.bcRow}>
@@ -114,14 +117,14 @@ export default function ProviderDashboardPage() {
           {showActions && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {b.status === 'Pending' && <>
-                <button style={styles.greenBtn} onClick={() => updateBooking(b.id, 'Accepted')}>✓ Accept</button>
-                <button style={styles.redBtn} onClick={() => updateBooking(b.id, 'Cancelled')}>✗ Decline</button>
+                <button style={styles.greenBtn} onClick={() => updateBooking(bid, 'Accepted')}>✓ Accept</button>
+                <button style={styles.redBtn} onClick={() => updateBooking(bid, 'Cancelled')}>✗ Decline</button>
               </>}
               {b.status === 'Accepted' && (
-                <button style={styles.greenBtn} onClick={() => updateBooking(b.id, 'InProgress')}>▶ Start Work</button>
+                <button style={styles.greenBtn} onClick={() => updateBooking(bid, 'InProgress')}>▶ Start Work</button>
               )}
               {b.status === 'InProgress' && (
-                <button style={styles.greenBtn} onClick={() => updateBooking(b.id, 'Completed')}>✓ Mark Done</button>
+                <button style={styles.greenBtn} onClick={() => updateBooking(bid, 'Completed')}>✓ Mark Done</button>
               )}
             </div>
           )}
@@ -172,7 +175,7 @@ export default function ProviderDashboardPage() {
           {pending.length > 0 && (
             <div style={styles.section}>
               <h3 style={styles.sectionTitle}>⏳ Needs Your Response</h3>
-              {pending.slice(0, 3).map(b => <BookingCard key={b.id} b={b} showActions />)}
+              {pending.slice(0, 3).map(b => <BookingCard key={b._id ?? b.id} b={b} showActions />)}
               {pending.length > 3 && <p style={{ color: '#888', fontSize: 13 }}>+{pending.length - 3} more pending bookings</p>}
             </div>
           )}
@@ -199,7 +202,7 @@ export default function ProviderDashboardPage() {
             </div>
           )}
           {services.map(s => (
-            <div key={s.id} style={styles.serviceCard}>
+            <div key={s._id ?? s.id} style={styles.serviceCard}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -236,21 +239,21 @@ export default function ProviderDashboardPage() {
       {tab === 'pending' && (
         <div style={{ marginTop: 8 }}>
           {pending.length === 0 ? <p style={{ color: '#888' }}>No pending bookings. All caught up!</p>
-            : pending.map(b => <BookingCard key={b.id} b={b} showActions />)}
+            : pending.map(b => <BookingCard key={b._id ?? b.id} b={b} showActions />)}
         </div>
       )}
 
       {tab === 'active' && (
         <div style={{ marginTop: 8 }}>
           {active.length === 0 ? <p style={{ color: '#888' }}>No active bookings right now.</p>
-            : active.map(b => <BookingCard key={b.id} b={b} showActions />)}
+            : active.map(b => <BookingCard key={b._id ?? b.id} b={b} showActions />)}
         </div>
       )}
 
       {tab === 'history' && (
         <div style={{ marginTop: 8 }}>
           {history.length === 0 ? <p style={{ color: '#888' }}>No completed or cancelled bookings yet.</p>
-            : history.map(b => <BookingCard key={b.id} b={b} />)}
+            : history.map(b => <BookingCard key={b._id ?? b.id} b={b} />)}
         </div>
       )}
 
