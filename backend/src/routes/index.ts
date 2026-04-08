@@ -11,6 +11,7 @@ import cropDoctorRoutes from './cropDoctor';
 import recommendationRoutes from './recommendations';
 import calendarRoutes from './calendar';
 import statsRoutes from './stats';
+import alertRoutes from './alerts';
 import { getPublicKnowledge } from '../controllers/adminController';
 
 const router = Router();
@@ -26,6 +27,7 @@ router.use('/chatbot', chatbotRoutes);
 router.use('/crop-doctor', cropDoctorRoutes);
 router.use('/recommendations', recommendationRoutes);
 router.use('/calendar', calendarRoutes);
+router.use('/alerts', alertRoutes);
 
 // Weather proxy — avoids CORS issues when calling OpenWeatherMap from the browser
 router.get('/weather', async (req, res) => {

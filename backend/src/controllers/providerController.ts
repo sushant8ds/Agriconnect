@@ -25,7 +25,7 @@ export async function getProviderEarnings(req: Request, res: Response): Promise<
     return sum + (svc?.price ?? 0);
   }, 0);
 
-  res.json({ totalRevenue, completedBookings: completed.length });
+  res.json({ totalEarnings: totalRevenue, totalRevenue, completedBookings: completed.length });
 }
 
 export async function getProviderServices(req: Request, res: Response): Promise<void> {

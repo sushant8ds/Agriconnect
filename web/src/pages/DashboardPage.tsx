@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
 
 interface Booking {
-  id: string;
+  _id?: string;
+  id?: string;
   service_id?: { type: string; price: number; description: string; averageRating: number };
-  provider_id?: { name: string; phone: string };
+  provider_id?: { name: string; phone: string; trust_score?: number };
   status: string;
   date: string;
   timeSlot?: string;
@@ -51,12 +52,28 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
+  function bid(b: Booking) { return b._id ?? b.id ?? ''; }
+
   async function cancelBooking(id: string) {
     if (!window.confirm('Cancel this booking?')) return;
     try {
       await api.patch(`/api/bookings/${id}`, { status: 'Cancelled', cancellationReason: 'Cancelled by farmer' }, { headers });
-      setBookings(b => b.map(x => x.id === id ? { ...x, status: 'Cancelled' } : x));
+      setBookings(bs => bs.map(x => bid(x) === id ? { ...x, status: 'Cancelled' } : x));
     } catch (e: any) { alert(e.response?.data?.error || 'Failed to cancel'); }
+  }
+
+  function handlePayNow(b: Booking) {
+    const price = b.service_id?.price ?? 0;
+    const providerName = b.provider_id?.name ?? 'Provider';
+    const phone = b.provider_id?.phone?.replace(/\D/g, '') ?? '';
+    // Try UPI deep link first; fallback to WhatsApp
+    const upiLink = `upi://pay?pn=${encodeURIComponent(providerName)}&am=${price}&cu=INR&tn=${encodeURIComponent('AgriConnect Service Payment')}`;
+    const waLink = `https://wa.me/91${phone}?text=${encodeURIComponent(`Hi, I'd like to pay ₹${price} for the AgriConnect service booking.`)}`;
+    // Open UPI; if it fails (no UPI app), open WhatsApp
+    const a = document.createElement('a');
+    a.href = upiLink;
+    a.click();
+    if (phone) setTimeout(() => window.open(waLink, '_blank'), 1500);
   }
 
   async function submitFeedback() {
@@ -80,6 +97,9 @@ export default function DashboardPage() {
   const totalSpent = bookings.filter(b => b.status === 'Completed').reduce((s, b) => s + (b.service_id?.price ?? 0), 0);
 
   function BookingCard({ b }: { b: Booking }) {
+    const id = bid(b);
+    const phone = b.provider_id?.phone?.replace(/\D/g, '') ?? '';
+    const canPay = ['Accepted', 'InProgress'].includes(b.status);
     return (
       <div style={styles.bookingCard}>
         <div style={styles.bcRow}>
@@ -88,16 +108,36 @@ export default function DashboardPage() {
               <span style={{ ...styles.pill, background: STATUS_COLORS[b.status] ?? '#ccc' }}>{b.status}</span>
               <strong style={{ fontSize: 14 }}>{TYPE_LABELS[b.service_id?.type ?? ''] ?? b.service_id?.type ?? 'Service'}</strong>
             </div>
-            <p style={styles.sub}>🏢 {b.provider_id?.name || 'Provider'}</p>
             <p style={styles.sub}>📅 {new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {b.timeSlot ? `| ${b.timeSlot}` : ''}</p>
             <p style={styles.sub}>💰 ₹{b.service_id?.price ?? '—'}</p>
+
+            {/* Provider Contact Card */}
+            {b.provider_id?.name && (
+              <div style={styles.providerCard}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: 13, color: '#1b4332' }}>🏢 {b.provider_id.name}</p>
+                    {phone && <p style={{ margin: '2px 0 0', fontSize: 12, color: '#666' }}>📞 +91-{phone}</p>}
+                    {b.provider_id.trust_score != null && (
+                      <p style={{ margin: '2px 0 0', fontSize: 12, color: '#888' }}>⭐ Trust Score: {b.provider_id.trust_score}</p>
+                    )}
+                  </div>
+                  {phone && (
+                    <a href={`tel:+91${phone}`} style={{ ...styles.callBtn }}>📞 Call</a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {b.status === 'Pending' && (
-              <button style={styles.redBtn} onClick={() => cancelBooking(b.id)}>✗ Cancel</button>
+              <button style={styles.redBtn} onClick={() => cancelBooking(id)}>✗ Cancel</button>
+            )}
+            {canPay && (
+              <button style={styles.payBtn} onClick={() => handlePayNow(b)}>💳 Pay Now</button>
             )}
             {b.status === 'Completed' && (
-              <button style={styles.greenBtn} onClick={() => setFeedbackForm({ bookingId: b.id, rating: 5, comment: '' })}>
+              <button style={styles.greenBtn} onClick={() => setFeedbackForm({ bookingId: id, rating: 5, comment: '' })}>
                 ⭐ Rate
               </button>
             )}
@@ -177,7 +217,7 @@ export default function DashboardPage() {
           {bookings.filter(b => b.status === 'Pending').length > 0 && (
             <div style={styles.section}>
               <h3 style={styles.sectionTitle}>⏳ Awaiting Confirmation</h3>
-              {bookings.filter(b => b.status === 'Pending').slice(0, 3).map(b => <BookingCard key={b.id} b={b} />)}
+              {bookings.filter(b => b.status === 'Pending').slice(0, 3).map(b => <BookingCard key={bid(b)} b={b} />)}
             </div>
           )}
         </div>
@@ -191,7 +231,7 @@ export default function DashboardPage() {
               <a href="/services" style={styles.greenBtn}>Browse Services →</a>
             </div>
           )}
-          {bookings.map(b => <BookingCard key={b.id} b={b} />)}
+          {bookings.map(b => <BookingCard key={bid(b)} b={b} />)}
         </div>
       )}
 
@@ -267,6 +307,9 @@ const styles: Record<string, React.CSSProperties> = {
   sub: { margin: '2px 0', fontSize: 13, color: '#888' },
   greenBtn: { background: '#2d6a4f', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'none', display: 'inline-block' },
   redBtn: { background: '#e63946', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  payBtn: { background: '#f4a261', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 },
+  callBtn: { background: '#4cc9f0', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'none', display: 'inline-block' },
+  providerCard: { background: '#f0faf4', border: '1px solid #b7e4c7', borderRadius: 8, padding: '10px 12px', marginTop: 8 },
   emptyState: { textAlign: 'center', padding: 40 },
   overlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: '#fff', borderRadius: 12, padding: 24, width: 400, maxWidth: '90vw' },
