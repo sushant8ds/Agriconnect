@@ -6,6 +6,8 @@ export type LanguagePreference = 'en' | 'hi' | 'kn' | 'mr' | 'te' | 'ta' | 'ml';
 export interface IUser extends Document {
   name: string;
   phone: string;
+  passwordHash?: string;
+  isVerified: boolean;       // true after OTP confirmed at registration
   role: UserRole;
   location: string;
   languagePreference: LanguagePreference;

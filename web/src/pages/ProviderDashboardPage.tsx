@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 
 interface Booking {
   id: string;
@@ -8,6 +8,7 @@ interface Booking {
   status: string;
   date: string;
   timeSlot?: string;
+  createdAt?: string;
 }
 
 interface Earnings {
@@ -68,7 +69,7 @@ export default function ProviderDashboardPage() {
 
   async function updateBooking(id: string, status: string) {
     try {
-      await axios.patch(`/api/bookings/${id}`, { status }, { headers });
+      await api.patch(`/api/bookings/${id}`, { status }, { headers });
       // Refresh bookings
       const r = await axios.get('/api/provider/bookings', { headers });
       setGrouped(r.data?.bookings ?? {});
@@ -80,7 +81,7 @@ export default function ProviderDashboardPage() {
   async function addService() {
     if (!form.price || !form.description) return;
     try {
-      await axios.post('/api/services', {
+      await api.post('/api/services', {
         type: form.type,
         price: Number(form.price),
         description: form.description,
@@ -105,6 +106,11 @@ export default function ProviderDashboardPage() {
             <p style={styles.sub}>👤 {b.farmer_id?.name || b.farmer_id?.phone || 'Farmer'}</p>
             <p style={styles.sub}>📅 {new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {b.timeSlot ? `| ${b.timeSlot}` : ''}</p>
             <p style={styles.sub}>💰 ₹{b.service_id?.price ?? '—'}</p>
+            {b.createdAt && (
+              <p style={{ ...styles.sub, color: '#aaa', fontSize: 11 }}>
+                🕐 Raised: {new Date(b.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
           </div>
           {showActions && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

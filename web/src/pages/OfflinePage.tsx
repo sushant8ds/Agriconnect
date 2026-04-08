@@ -4,7 +4,7 @@ import {
   getLastSync, syncQueue, clearSyncedItems, removeFromQueue, QueuedBooking,
   cacheServices, cacheBookings, cacheAlerts,
 } from '../store/offlineStore';
-import axios from 'axios';
+import api from '../api/axios';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f4a261', syncing: '#4cc9f0', synced: '#52b788', failed: '#e63946',
@@ -51,9 +51,9 @@ export default function OfflinePage() {
     setCaching(true);
     try {
       const [sRes, bRes, aRes] = await Promise.allSettled([
-        axios.get('/api/services', { headers }),
-        axios.get('/api/bookings', { headers }),
-        axios.get('/api/alerts', { headers }),
+        api.get('/api/services', { headers }),
+        api.get('/api/bookings', { headers }),
+        api.get('/api/alerts', { headers }),
       ]);
       if (sRes.status === 'fulfilled') cacheServices(sRes.value.data?.services ?? []);
       if (bRes.status === 'fulfilled') cacheBookings(Array.isArray(bRes.value.data) ? bRes.value.data : []);

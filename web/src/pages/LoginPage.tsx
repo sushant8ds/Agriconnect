@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import SplashAnimation from '../components/SplashAnimation';
+import { useNavigate } from 'react-router-dom';
+import api from '../api/axios';
 
 type Role = 'Farmer' | 'Service_Provider' | 'Admin';
 type Mode = 'login' | 'register';
 
-const ROLES: { value: Role; icon: string; label: string; desc: string; color: string }[] = [
-  { value: 'Farmer',           icon: '🧑‍🌾', label: 'Farmer',           desc: 'Book farming services',   color: '#2d6a4f' },
-  { value: 'Service_Provider', icon: '🛠️',  label: 'Service Provider', desc: 'Manage your listings',    color: '#e76f51' },
-  { value: 'Admin',            icon: '⚙️',  label: 'Admin',            desc: 'Platform management',     color: '#457b9d' },
+const ROLES: { value: Role; icon: string; label: string; color: string }[] = [
+  { value: 'Farmer',           icon: '🧑‍🌾', label: 'Farmer',           color: '#2d6a4f' },
+  { value: 'Service_Provider', icon: '🛠️',  label: 'Service Provider', color: '#e76f51' },
+  { value: 'Admin',            icon: '⚙️',  label: 'Admin',            color: '#457b9d' },
 ];
 
 export default function LoginPage() {
@@ -40,9 +40,7 @@ export default function LoginPage() {
       localStorage.setItem('token', res.data.accessToken);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const r = res.data.user?.role;
-      if (r === 'Service_Provider') window.location.replace('/provider');
-      else if (r === 'Admin') window.location.replace('/admin');
-      else window.location.replace('/dashboard');
+      navigate(r === 'Service_Provider' ? '/provider' : r === 'Admin' ? '/admin' : '/dashboard', { replace: true });
     } catch (e: any) {
       setError(e.response?.data?.error || 'Something went wrong');
     } finally {
@@ -50,7 +48,63 @@ export default function LoginPage() {
     }
   }
 
-  if (!splashDone) return <SplashAnimation onDone={() => setSplashDone(true)} />;
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault();
+    if (password !== confirmPassword) { setError('Passwords do not match'); return; }
+    setLoading(true); setError('');
+    try {
+      const res = await api.post('/api/auth/register', { phone, password, role, name });
+      setDevOtp(res.data.devOtp ?? '');
+      setSuccess('OTP sent to your phone.');
+      setScreen('verify');
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Registration failed');
+    } finally { setLoading(false); }
+  }
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const res = await api.post('/api/auth/verify-phone', { phone, otp });
+      localStorage.clear();
+      localStorage.setItem('token', res.data.accessToken);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      const r = res.data.user?.role;
+      navigate(r === 'Service_Provider' ? '/provider' : r === 'Admin' ? '/admin' : '/dashboard', { replace: true });
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Verification failed');
+    } finally { setLoading(false); }
+  }
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const res = await api.post('/api/auth/forgot-password', { phone });
+      setDevOtp(res.data.devOtp ?? '');
+      setSuccess(res.data.message);
+      setScreen('reset');
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Failed to send OTP');
+    } finally { setLoading(false); }
+  }
+
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      await api.post('/api/auth/reset-password', { phone, otp, newPassword });
+      setSuccess('Password reset! Please login.');
+      reset('login');
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Reset failed');
+    } finally { setLoading(false); }
+  }
+
+  if (!splashDone) return null;
+
+  const accentColor = ROLES.find(r => r.value === role)?.color ?? '#2d6a4f';
 
   return (
     <div style={s.page}>
@@ -173,7 +227,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   header: { textAlign: 'center', marginBottom: 20 },
   logo: {
-    fontSize: 64, display: 'block', marginBottom: 8,
+    fontSize: 56, display: 'block', marginBottom: 8,
     animation: 'logoFloat 3s ease-in-out infinite',
     filter: 'drop-shadow(0 0 16px rgba(82,183,136,0.8))',
   },
@@ -190,6 +244,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   modeBtnActive: { background: 'rgba(255,255,255,0.15)', color: '#fff' },
   card: {
+    width: '100%',
     background: 'rgba(255,255,255,0.07)', backdropFilter: 'blur(20px)',
     borderRadius: 20, padding: '24px 24px 20px',
     border: '1px solid rgba(255,255,255,0.12)',
@@ -206,7 +261,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   divider: { height: 1, background: 'rgba(255,255,255,0.1)' },
   input: {
-    width: '100%', padding: '12px 14px', borderRadius: 10,
+    width: '100%', padding: '11px 14px', borderRadius: 10,
     border: '1px solid rgba(255,255,255,0.2)',
     background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: 15,
     boxSizing: 'border-box', outline: 'none',

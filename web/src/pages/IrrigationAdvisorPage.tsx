@@ -151,7 +151,7 @@ export default function IrrigationAdvisorPage() {
     setResult(r);
   }, [weather, crop, stage, soilType, soilMoisture, area]);
 
-  const urgencyColor = { high: '#e63946', medium: '#f4a261', low: '#52b788' };
+  const urgencyColor: Record<string, string> = { high: '#e63946', medium: '#f4a261', low: '#52b788' };
 
   return (
     <div style={{ fontFamily: 'sans-serif' }}>

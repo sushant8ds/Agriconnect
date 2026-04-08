@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 
 interface WeatherData {
   temp: number;
@@ -82,14 +82,12 @@ export default function LandingPage() {
 
   async function fetchWeatherByCoords(lat: number, lon: number) {
     try {
-      const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=bd5e378503939ddaee76f12ad7a97608&units=metric`
-      );
+      const res = await api.get(`/api/weather?lat=${lat}&lon=${lon}`);
       setWeather({
         temp: Math.round(res.data.main.temp),
         feelsLike: Math.round(res.data.main.feels_like),
         humidity: res.data.main.humidity,
-        windSpeed: Math.round(res.data.wind.speed * 3.6), // m/s to km/h
+        windSpeed: Math.round(res.data.wind.speed * 3.6),
         desc: res.data.weather[0].description,
         city: res.data.name,
         country: res.data.sys.country,
@@ -104,9 +102,7 @@ export default function LandingPage() {
 
   async function fetchWeatherByCity(city: string) {
     try {
-      const res = await axios.get(
-        `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=bd5e378503939ddaee76f12ad7a97608&units=metric`
-      );
+      const res = await api.get(`/api/weather?city=${encodeURIComponent(city)}`);
       setWeather({
         temp: Math.round(res.data.main.temp),
         feelsLike: Math.round(res.data.main.feels_like),
@@ -126,7 +122,7 @@ export default function LandingPage() {
 
   // Fetch real platform stats from backend
   useEffect(() => {
-    axios.get('/api/stats')
+    api.get('/api/stats')
       .then(res => setPlatformStats(res.data))
       .catch(() => setPlatformStats(null));
   }, []);

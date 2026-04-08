@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 
 interface Booking {
   id: string;
@@ -46,7 +46,7 @@ export default function DashboardPage() {
     axios.get('/api/bookings', { headers })
       .then(r => setBookings(Array.isArray(r.data?.bookings) ? r.data.bookings : []))
       .catch(() => {});
-    axios.get('/api/alerts', { headers })
+    api.get('/api/alerts', { headers })
       .then(r => setAlerts(r.data?.alerts ?? []))
       .catch(() => {});
   }, []);
@@ -62,7 +62,7 @@ export default function DashboardPage() {
   async function submitFeedback() {
     if (!feedbackForm) return;
     try {
-      await axios.post('/api/feedback', {
+      await api.post('/api/feedback', {
         booking_id: feedbackForm.bookingId,
         rating: feedbackForm.rating,
         comment: feedbackForm.comment,

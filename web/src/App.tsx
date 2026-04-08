@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import { useTranslation } from 'react-i18next';
 import LoginPage from './pages/LoginPage';
@@ -18,6 +18,27 @@ import ChatWidget from './components/ChatWidget';
 
 function getUser() {
   try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; }
+}
+
+// Handle 404.html redirect for SPA routing on static hosts
+function SpaRedirectHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    // Check sessionStorage first (set by 404.html)
+    const stored = sessionStorage.getItem('spa_redirect');
+    if (stored && stored !== '/') {
+      sessionStorage.removeItem('spa_redirect');
+      navigate(stored, { replace: true });
+      return;
+    }
+    // Fallback: check query param
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get('redirect');
+    if (redirect && redirect !== '/') {
+      navigate(redirect, { replace: true });
+    }
+  }, []);
+  return null;
 }
 
 function getHome(role?: string) {
@@ -160,6 +181,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <SpaRedirectHandler />
       <OfflineIndicator />
       {role === 'Service_Provider' && <SimpleTopBar title="🌾 KisanServe" />}
       {role === 'Admin' && <SimpleTopBar title="🌾 KisanServe" />}

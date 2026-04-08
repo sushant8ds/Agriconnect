@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 
 interface Service {
   id: string;
@@ -44,7 +44,7 @@ export default function ServicesPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (isOnline()) {
-      axios.get('/api/services', { headers: { Authorization: `Bearer ${token}` } })
+      api.get('/api/services', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => {
           const list = r.data?.services ?? [];
           setServices(list);
@@ -99,7 +99,7 @@ export default function ServicesPage() {
     }
 
     try {
-      await axios.post('/api/bookings',
+      await api.post('/api/bookings',
         { service_id: serviceId, date, timeSlot: slot },
         { headers: { Authorization: `Bearer ${token}` } }
       );
