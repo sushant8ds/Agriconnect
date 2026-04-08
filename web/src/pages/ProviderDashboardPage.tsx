@@ -51,13 +51,13 @@ export default function ProviderDashboardPage() {
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
 
   useEffect(() => {
-    axios.get('/api/provider/bookings', { headers })
+    api.get('/api/provider/bookings', { headers })
       .then(r => setGrouped(r.data?.bookings ?? {}))
       .catch(() => {});
-    axios.get('/api/provider/earnings', { headers })
+    api.get('/api/provider/earnings', { headers })
       .then(r => setEarnings(r.data))
       .catch(() => {});
-    axios.get('/api/provider/services', { headers })
+    api.get('/api/provider/services', { headers })
       .then(r => setServices(r.data?.services ?? []))
       .catch(() => {});
   }, []);
@@ -70,10 +70,9 @@ export default function ProviderDashboardPage() {
   async function updateBooking(id: string, status: string) {
     try {
       await api.patch(`/api/bookings/${id}`, { status }, { headers });
-      // Refresh bookings
-      const r = await axios.get('/api/provider/bookings', { headers });
+      const r = await api.get('/api/provider/bookings', { headers });
       setGrouped(r.data?.bookings ?? {});
-      const e = await axios.get('/api/provider/earnings', { headers });
+      const e = await api.get('/api/provider/earnings', { headers });
       setEarnings(e.data);
     } catch { alert('Failed to update booking'); }
   }

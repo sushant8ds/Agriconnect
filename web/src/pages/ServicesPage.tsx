@@ -8,9 +8,13 @@ interface Service {
   description: string;
   price: number;
   averageRating?: number;
+  average_rating?: number;
   ratingCount?: number;
+  rating_count?: number;
   priceTrend?: string;
+  price_trend?: string;
   optimalBookingWindow?: string;
+  optimal_booking_window?: string;
   providerName?: string;
 }
 
