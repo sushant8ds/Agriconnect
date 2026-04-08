@@ -10,6 +10,10 @@ interface Booking {
   date: string;
   timeSlot?: string;
   createdAt?: string;
+  farmAddress?: string;
+  cropType?: string;
+  areaAcres?: number;
+  specialInstructions?: string;
 }
 
 interface Earnings {
@@ -53,19 +57,22 @@ export default function ProviderDashboardPage() {
   const headers = { Authorization: `Bearer ${token}` };
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
 
-  useEffect(() => {
+  function loadBookings() {
     api.get('/api/provider/bookings', { headers })
-      .then(r => setGrouped(r.data?.bookings ?? {}))
+      .then(r => { setGrouped(r.data?.bookings ?? {}); setLoadError(''); })
       .catch(e => {
         const msg = e.response?.data?.error || e.message || 'Failed to load bookings';
         setLoadError(`Bookings error (${e.response?.status ?? '?'}): ${msg}`);
       });
-    api.get('/api/provider/earnings', { headers })
-      .then(r => setEarnings(r.data))
-      .catch(() => {});
-    api.get('/api/provider/services', { headers })
-      .then(r => setServices(r.data?.services ?? []))
-      .catch(() => {});
+  }
+
+  useEffect(() => {
+    loadBookings();
+    api.get('/api/provider/earnings', { headers }).then(r => setEarnings(r.data)).catch(() => {});
+    api.get('/api/provider/services', { headers }).then(r => setServices(r.data?.services ?? [])).catch(() => {});
+    // Real-time polling every 15 seconds
+    const poll = setInterval(loadBookings, 15000);
+    return () => clearInterval(poll);
   }, []);
 
   const allBookings = (Object.values(grouped) as Booking[][]).flat();
@@ -110,8 +117,16 @@ export default function ProviderDashboardPage() {
               <strong style={{ fontSize: 14 }}>{TYPE_LABELS[b.service_id?.type ?? ''] ?? b.service_id?.type ?? 'Service'}</strong>
             </div>
             <p style={styles.sub}>👤 {b.farmer_id?.name || b.farmer_id?.phone || 'Farmer'}</p>
+            {b.farmer_id?.phone && <p style={styles.sub}>📞 <a href={`tel:${b.farmer_id.phone}`} style={{ color: '#2d6a4f' }}>{b.farmer_id.phone}</a></p>}
             <p style={styles.sub}>📅 {new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {b.timeSlot ? `| ${b.timeSlot}` : ''}</p>
             <p style={styles.sub}>💰 ₹{b.service_id?.price ?? '—'}</p>
+            {b.cropType && <p style={styles.sub}>🌾 Crop: {b.cropType}{b.areaAcres ? ` · ${b.areaAcres} acres` : ''}</p>}
+            {b.farmAddress && <p style={styles.sub}>📍 {b.farmAddress}</p>}
+            {b.specialInstructions && (
+              <p style={{ ...styles.sub, background: '#fffbea', border: '1px solid #ffe08a', borderRadius: 6, padding: '4px 8px', marginTop: 4 }}>
+                📝 {b.specialInstructions}
+              </p>
+            )}
             {b.createdAt && (
               <p style={{ ...styles.sub, color: '#aaa', fontSize: 11 }}>
                 🕐 Raised: {new Date(b.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}

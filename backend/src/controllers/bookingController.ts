@@ -5,7 +5,7 @@ import { User } from '../models/User';
 
 export async function createBooking(req: Request, res: Response): Promise<void> {
   const user = req.user!;
-  const { service_id, date, timeSlot } = req.body;
+  const { service_id, date, timeSlot, farmAddress, cropType, areaAcres, specialInstructions } = req.body;
 
   if (!service_id || !date || !timeSlot) { res.status(400).json({ error: 'service_id, date and timeSlot are required' }); return; }
 
@@ -32,6 +32,10 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     status: 'Pending',
     date: bookingDate,
     timeSlot,
+    farmAddress,
+    cropType,
+    areaAcres,
+    specialInstructions,
   });
 
   res.status(201).json({ booking });

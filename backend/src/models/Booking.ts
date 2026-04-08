@@ -9,6 +9,10 @@ export interface IBooking extends Document {
   status: BookingStatus;
   date: Date;
   timeSlot?: string;
+  farmAddress?: string;
+  cropType?: string;
+  areaAcres?: number;
+  specialInstructions?: string;
   cancelledBy?: string;
   cancellationReason?: string;
   feedbackPromptSent: boolean;
@@ -26,6 +30,10 @@ const BookingSchema = new Schema<IBooking>(
     },
     date: { type: Date, required: true },
     timeSlot: { type: String },
+    farmAddress: { type: String },
+    cropType: { type: String },
+    areaAcres: { type: Number },
+    specialInstructions: { type: String },
     cancelledBy: { type: String },
     cancellationReason: { type: String },
     feedbackPromptSent: { type: Boolean, default: false },

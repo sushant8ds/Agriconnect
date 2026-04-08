@@ -7,7 +7,8 @@ export async function getProviderBookings(req: Request, res: Response): Promise<
   const bookings = await Booking.find({ provider_id: user.userId })
     .populate('service_id', 'type price description')
     .populate('farmer_id', 'name phone trust_score')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .select('+farmAddress +cropType +areaAcres +specialInstructions');
 
   const grouped: Record<string, unknown[]> = { Pending: [], Accepted: [], InProgress: [], Completed: [], Cancelled: [] };
   for (const b of bookings) grouped[b.status]?.push(b);
