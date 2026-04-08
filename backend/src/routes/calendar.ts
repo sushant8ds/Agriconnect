@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
 import { farmerOnly } from '../middleware/rbac';
-import { supabase } from '../config/supabase';
+import { FarmingCalendar } from '../models/FarmingCalendar';
 
 const router = Router();
 
@@ -16,18 +16,19 @@ router.post('/generate', authenticate, farmerOnly, async (req: Request, res: Res
     { activity: 'Harvest Check', date: new Date(Date.now() + 14 * 86400000).toISOString(), notes: 'Inspect crop readiness' },
   ];
 
-  const { data, error } = await supabase.from('farming_calendars').upsert({
-    farmer_id: farmerId, crop_type: cropType, location, schedule_json: schedule, updated_at: new Date(),
-  }, { onConflict: 'farmer_id' }).select().single();
+  const calendar = await FarmingCalendar.findOneAndUpdate(
+    { farmer_id: farmerId },
+    { farmer_id: farmerId, cropType, location, scheduleJson: schedule, lastUpdated: new Date() },
+    { upsert: true, new: true }
+  );
 
-  if (error) { res.status(500).json({ error: 'Failed to generate calendar' }); return; }
-  res.status(201).json({ calendar: data });
+  res.status(201).json({ calendar });
 });
 
 router.get('/', authenticate, farmerOnly, async (req: Request, res: Response): Promise<void> => {
-  const { data } = await supabase.from('farming_calendars').select('*').eq('farmer_id', req.user!.userId).single();
-  if (!data) { res.status(404).json({ error: 'No calendar found. Please generate one first.' }); return; }
-  res.json({ calendar: data });
+  const calendar = await FarmingCalendar.findOne({ farmer_id: req.user!.userId });
+  if (!calendar) { res.status(404).json({ error: 'No calendar found. Please generate one first.' }); return; }
+  res.json({ calendar });
 });
 
 export default router;
