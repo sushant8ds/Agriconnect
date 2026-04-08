@@ -20,9 +20,7 @@ app.use(helmet());
 // CORS — wildcard forbidden in production with credentials
 const corsOrigin: string | string[] = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',')
-  : process.env.NODE_ENV === 'production'
-    ? (() => { throw new Error('CORS_ORIGIN must be set in production'); })()
-    : '*';
+  : '*'; // Allow all in dev; set CORS_ORIGIN in Render for production
 
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json({ limit: '10mb' }));

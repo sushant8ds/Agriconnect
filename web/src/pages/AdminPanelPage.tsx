@@ -10,7 +10,8 @@ interface Analytics {
 }
 
 interface FlaggedReview {
-  id: string;
+  _id: string;
+  id?: string;
   rating: number;
   comment: string;
   reviewer_id?: { name: string };
@@ -18,7 +19,8 @@ interface FlaggedReview {
 }
 
 interface Service {
-  id: string;
+  _id: string;
+  id?: string;
   type: string;
   category: string;
   description: string;
@@ -66,7 +68,7 @@ export default function AdminPanelPage() {
     const freshToken = localStorage.getItem('token');
     try {
       await api.patch(`/api/admin/services/${id}`, { status: 'active' }, { headers: { Authorization: `Bearer ${freshToken}` } });
-      setServices(s => s.map(x => x.id === id ? { ...x, status: 'active' } : x));
+      setServices(s => s.map(x => (x._id ?? x.id) === id ? { ...x, status: 'active' } : x));
     } catch { alert('Failed to update service'); }
   }
 
@@ -74,7 +76,7 @@ export default function AdminPanelPage() {
     const freshToken = localStorage.getItem('token');
     try {
       await api.patch(`/api/admin/services/${id}`, { status: 'rejected' }, { headers: { Authorization: `Bearer ${freshToken}` } });
-      setServices(s => s.map(x => x.id === id ? { ...x, status: 'rejected' } : x));
+      setServices(s => s.map(x => (x._id ?? x.id) === id ? { ...x, status: 'rejected' } : x));
     } catch { alert('Failed to update service'); }
   }
 
@@ -82,7 +84,7 @@ export default function AdminPanelPage() {
     const freshToken = localStorage.getItem('token');
     try {
       await api.patch(`/api/admin/reviews/${id}`, { action }, { headers: { Authorization: `Bearer ${freshToken}` } });
-      setReviews(r => r.filter(x => x.id !== id));
+      setReviews(r => r.filter(x => (x._id ?? x.id) !== id));
     } catch { alert('Failed to update review'); }
   }
 
@@ -168,7 +170,7 @@ export default function AdminPanelPage() {
           </p>
           {services.length === 0 && <p style={{ color: '#888' }}>No services found.</p>}
           {services.map(s => (
-            <div key={s.id} style={styles.serviceRow}>
+            <div key={s._id ?? s.id} style={styles.serviceRow}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ ...styles.statusPill, background: s.status === 'active' ? '#52b788' : s.status === 'rejected' ? '#e63946' : '#f4a261', fontSize: 11 }}>
@@ -178,15 +180,15 @@ export default function AdminPanelPage() {
                 </div>
                 <p style={{ margin: 0, fontSize: 13, color: '#666' }}>{s.description?.slice(0, 80)}</p>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: '#2d6a4f', fontWeight: 600 }}>
-                  ₹{s.price} | 👤 {(s as any).users?.name ?? 'Provider'}
+                  ₹{s.price} | 👤 {(s as any).users?.name ?? (s as any).provider_id?.name ?? 'Provider'}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {s.status !== 'active' && (
-                  <button style={styles.approveBtn} onClick={() => approveService(s.id)}>✓ Approve</button>
+                  <button style={styles.approveBtn} onClick={() => approveService(s._id ?? s.id!)}>✓ Approve</button>
                 )}
                 {s.status !== 'rejected' && (
-                  <button style={styles.rejectBtn} onClick={() => rejectService(s.id)}>✗ Reject</button>
+                  <button style={styles.rejectBtn} onClick={() => rejectService(s._id ?? s.id!)}>✗ Reject</button>
                 )}
               </div>
             </div>
@@ -201,7 +203,7 @@ export default function AdminPanelPage() {
           </p>
           {reviews.length === 0 && <p style={{ color: '#888' }}>No flagged reviews. Platform looks clean!</p>}
           {reviews.map(r => (
-            <div key={r.id} style={styles.reviewCard}>
+            <div key={r._id ?? r.id} style={styles.reviewCard}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
                   {'⭐'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
@@ -212,8 +214,8 @@ export default function AdminPanelPage() {
                 <p style={{ margin: 0, fontSize: 14, color: '#444' }}>"{r.comment}"</p>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button style={styles.approveBtn} onClick={() => handleReview(r.id, 'approve')}>✓ Keep</button>
-                <button style={styles.rejectBtn} onClick={() => handleReview(r.id, 'remove')}>✗ Remove</button>
+                <button style={styles.approveBtn} onClick={() => handleReview(r._id ?? r.id!, 'approve')}>✓ Keep</button>
+                <button style={styles.rejectBtn} onClick={() => handleReview(r._id ?? r.id!, 'remove')}>✗ Remove</button>
               </div>
             </div>
           ))}
