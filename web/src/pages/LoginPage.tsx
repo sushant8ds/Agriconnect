@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 
 type Role = 'Farmer' | 'Service_Provider' | 'Admin';
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot' | 'reset';
 
 const ROLES: { value: Role; icon: string; label: string; color: string }[] = [
   { value: 'Farmer',           icon: '🧑‍🌾', label: 'Farmer',           color: '#2d6a4f' },
@@ -15,38 +15,62 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('login');
   const [selectedRole, setSelectedRole] = useState<Role>('Farmer');
-  const [form, setForm] = useState({ name: '', phone: '', password: '' });
+  const [form, setForm] = useState({ name: '', phone: '', password: '', otp: '', newPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const role = ROLES.find(r => r.value === selectedRole)!;
 
   function update(patch: Partial<typeof form>) {
     setForm(f => ({ ...f, ...patch }));
-    setError('');
+    setError(''); setSuccess('');
+  }
+
+  function switchMode(m: Mode) {
+    setMode(m); setError(''); setSuccess('');
+    setForm({ name: '', phone: '', password: '', otp: '', newPassword: '' });
   }
 
   async function submit() {
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setSuccess('');
     try {
-      const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
-      const payload = mode === 'register'
-        ? { name: form.name, phone: form.phone, password: form.password, role: selectedRole }
-        : { phone: form.phone, password: form.password, role: selectedRole };
+      if (mode === 'login' || mode === 'register') {
+        const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
+        const payload = mode === 'register'
+          ? { name: form.name, phone: form.phone, password: form.password, role: selectedRole }
+          : { phone: form.phone, password: form.password, role: selectedRole };
 
-      const res = await api.post(endpoint, payload);
-      localStorage.clear();
-      localStorage.setItem('token', res.data.accessToken);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      const r = res.data.user?.role;
-      navigate(r === 'Service_Provider' ? '/provider' : r === 'Admin' ? '/admin' : '/dashboard', { replace: true });
+        const res = await api.post(endpoint, payload);
+        localStorage.clear();
+        localStorage.setItem('token', res.data.accessToken);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        const r = res.data.user?.role;
+        navigate(r === 'Service_Provider' ? '/provider' : r === 'Admin' ? '/admin' : '/dashboard', { replace: true });
+
+      } else if (mode === 'forgot') {
+        await api.post('/api/auth/forgot-password', { phone: form.phone });
+        setSuccess('OTP sent! Check your phone (or server logs in dev mode).');
+        setMode('reset');
+
+      } else if (mode === 'reset') {
+        await api.post('/api/auth/reset-password', {
+          phone: form.phone,
+          otp: form.otp,
+          newPassword: form.newPassword,
+        });
+        setSuccess('Password reset successfully! You can now log in.');
+        setTimeout(() => switchMode('login'), 2000);
+      }
     } catch (e: any) {
       setError(e.response?.data?.error || 'Something went wrong');
     } finally {
       setLoading(false);
     }
   }
+
+  const isForgotReset = mode === 'forgot' || mode === 'reset';
 
   return (
     <div style={s.page}>
@@ -62,59 +86,121 @@ export default function LoginPage() {
           <p style={s.subtitle}>Smart Farming Platform</p>
         </div>
 
-        <div style={s.modeToggle}>
-          <button style={{ ...s.modeBtn, ...(mode === 'login' ? s.modeBtnActive : {}) }} onClick={() => { setMode('login'); setError(''); }}>Login</button>
-          <button style={{ ...s.modeBtn, ...(mode === 'register' ? s.modeBtnActive : {}) }} onClick={() => { setMode('register'); setError(''); }}>Register</button>
-        </div>
+        {!isForgotReset && (
+          <div style={s.modeToggle}>
+            <button style={{ ...s.modeBtn, ...(mode === 'login' ? s.modeBtnActive : {}) }} onClick={() => switchMode('login')}>Login</button>
+            <button style={{ ...s.modeBtn, ...(mode === 'register' ? s.modeBtnActive : {}) }} onClick={() => switchMode('register')}>Register</button>
+          </div>
+        )}
+
+        {isForgotReset && (
+          <div style={{ marginBottom: 16, textAlign: 'center' }}>
+            <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
+              {mode === 'forgot' ? '🔑 Reset your password' : '✅ Enter OTP & new password'}
+            </span>
+          </div>
+        )}
 
         <div style={s.card}>
-          <div style={s.roleRow}>
-            {ROLES.map(r => (
-              <button key={r.value}
-                style={{ ...s.roleBtn, ...(selectedRole === r.value ? { background: r.color, borderColor: r.color, color: '#fff', transform: 'scale(1.04)' } : {}) }}
-                onClick={() => setSelectedRole(r.value)}>
-                <span style={{ fontSize: 22 }}>{r.icon}</span>
-                <span style={{ fontSize: 12, fontWeight: 700 }}>{r.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div style={s.divider} />
+          {!isForgotReset && (
+            <>
+              <div style={s.roleRow}>
+                {ROLES.map(r => (
+                  <button key={r.value}
+                    style={{ ...s.roleBtn, ...(selectedRole === r.value ? { background: r.color, borderColor: r.color, color: '#fff', transform: 'scale(1.04)' } : {}) }}
+                    onClick={() => setSelectedRole(r.value)}>
+                    <span style={{ fontSize: 22 }}>{r.icon}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>{r.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div style={s.divider} />
+            </>
+          )}
 
           {mode === 'register' && (
             <input style={s.input} type="text" placeholder="Full Name"
               value={form.name} onChange={e => update({ name: e.target.value })} />
           )}
 
-          <input style={s.input} type="tel" placeholder="Phone number (e.g. 7892489279)"
-            value={form.phone} onChange={e => update({ phone: e.target.value })} />
+          {(mode === 'login' || mode === 'register' || mode === 'forgot' || mode === 'reset') && (
+            <input style={s.input} type="tel" placeholder="Phone number (e.g. 7892489279)"
+              value={form.phone} onChange={e => update({ phone: e.target.value })} />
+          )}
 
-          <div style={{ position: 'relative' }}>
-            <input style={{ ...s.input, paddingRight: 44 }}
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Password (min 6 characters)"
-              value={form.password}
-              onChange={e => update({ password: e.target.value })}
-              onKeyDown={e => e.key === 'Enter' && submit()} />
-            <button type="button" style={s.eyeBtn} onClick={() => setShowPassword(v => !v)}>
-              {showPassword ? '🙈' : '👁️'}
-            </button>
-          </div>
+          {mode === 'reset' && (
+            <input style={s.input} type="text" placeholder="Enter 6-digit OTP"
+              value={form.otp} onChange={e => update({ otp: e.target.value })}
+              maxLength={6} inputMode="numeric" />
+          )}
+
+          {(mode === 'login' || mode === 'register') && (
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...s.input, paddingRight: 44 }}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password (min 6 characters)"
+                value={form.password}
+                onChange={e => update({ password: e.target.value })}
+                onKeyDown={e => e.key === 'Enter' && submit()} />
+              <button type="button" style={s.eyeBtn} onClick={() => setShowPassword(v => !v)}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+          )}
+
+          {mode === 'reset' && (
+            <div style={{ position: 'relative' }}>
+              <input style={{ ...s.input, paddingRight: 44 }}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="New password (min 6 characters)"
+                value={form.newPassword}
+                onChange={e => update({ newPassword: e.target.value })}
+                onKeyDown={e => e.key === 'Enter' && submit()} />
+              <button type="button" style={s.eyeBtn} onClick={() => setShowPassword(v => !v)}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+          )}
 
           {error && <p style={s.error}>{error}</p>}
+          {success && <p style={s.successMsg}>{success}</p>}
 
-          <button style={{ ...s.btn, background: role.color, opacity: loading ? 0.6 : 1 }}
+          <button style={{ ...s.btn, background: isForgotReset ? '#457b9d' : role.color, opacity: loading ? 0.6 : 1 }}
             onClick={submit} disabled={loading}>
-            {loading ? '⏳ Please wait...' : mode === 'register' ? `Register as ${role.label}` : `Login as ${role.label}`}
+            {loading ? '⏳ Please wait...' :
+              mode === 'register' ? `Register as ${role.label}` :
+              mode === 'login' ? `Login as ${role.label}` :
+              mode === 'forgot' ? 'Send OTP' :
+              'Reset Password'}
           </button>
 
-          <p style={s.switchText}>
-            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <span style={{ color: role.color, cursor: 'pointer', fontWeight: 700 }}
-              onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}>
-              {mode === 'login' ? 'Register' : 'Login'}
-            </span>
-          </p>
+          {mode === 'login' && (
+            <p style={s.switchText}>
+              <span style={{ color: '#74c0fc', cursor: 'pointer', fontWeight: 600 }}
+                onClick={() => switchMode('forgot')}>
+                Forgot password?
+              </span>
+            </p>
+          )}
+
+          {(mode === 'forgot' || mode === 'reset') && (
+            <p style={s.switchText}>
+              <span style={{ color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}
+                onClick={() => switchMode('login')}>
+                ← Back to login
+              </span>
+            </p>
+          )}
+
+          {(mode === 'login' || mode === 'register') && (
+            <p style={s.switchText}>
+              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+              <span style={{ color: role.color, cursor: 'pointer', fontWeight: 700 }}
+                onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}>
+                {mode === 'login' ? 'Register' : 'Login'}
+              </span>
+            </p>
+          )}
         </div>
       </div>
 
@@ -206,4 +292,5 @@ const s: Record<string, React.CSSProperties> = {
   },
   switchText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, textAlign: 'center', margin: 0 },
   error: { color: '#ff6b6b', fontSize: 13, margin: 0, textAlign: 'center' },
+  successMsg: { color: '#52b788', fontSize: 13, margin: 0, textAlign: 'center', fontWeight: 600 },
 };
