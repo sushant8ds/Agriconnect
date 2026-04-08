@@ -58,7 +58,7 @@ describe('Bug Condition Exploration — render.yaml backend env vars', () => {
   beforeAll(() => {
     renderConfig = readRenderYaml();
     backendService = (renderConfig.services as any[]).find(
-      (s: any) => s.name === 'agriconnect-backend'
+      (s: any) => s.name === 'kisanserve-api' || s.name === 'agriconnect-backend'
     );
     backendEnvVarKeys = ((backendService?.envVars ?? []) as Array<{ key: string }>).map(
       (e) => e.key
@@ -154,21 +154,21 @@ describe('Bug Condition Exploration — CORS wildcard in production', () => {
 });
 
 describe('Bug Condition Exploration — seedAllData() production guard', () => {
-  test('seedAllData() is NOT called unconditionally — must be guarded by NODE_ENV check', () => {
-    // Read the actual source of index.ts and verify the guard exists
+  test('seedAllData() is NOT called in production — either guarded or removed', () => {
+    // Read the actual source of index.ts and verify seedAllData is not called unconditionally
     const indexPath = path.join(REPO_ROOT, 'backend', 'src', 'index.ts');
     const indexSource = fs.readFileSync(indexPath, 'utf-8');
 
-    // The fixed code should have a NODE_ENV guard around seedAllData()
-    // e.g.: if (process.env.NODE_ENV !== 'production') { await seedAllData(); }
-    // EXPECTED TO FAIL on unfixed code — seedAllData() is called unconditionally
-    // Counterexample: index.ts calls `await seedAllData()` with no NODE_ENV guard
-    const hasProductionGuard =
-      /if\s*\(\s*process\.env\.NODE_ENV\s*!==\s*['"]production['"]\s*\)[\s\S]*?seedAllData/.test(
-        indexSource
-      ) ||
-      /NODE_ENV[\s\S]{0,50}production[\s\S]{0,100}seedAllData/.test(indexSource);
+    // The fixed code should either:
+    // (a) Have a NODE_ENV guard around seedAllData(), OR
+    // (b) Not call seedAllData() at all (e.g., after Supabase migration)
+    // Both are valid production-safe states.
+    const calledUnconditionally =
+      /await\s+seedAllData\s*\(\s*\)/.test(indexSource) &&
+      !/if\s*\(\s*process\.env\.NODE_ENV\s*!==\s*['"]production['"]\s*\)[\s\S]*?seedAllData/.test(indexSource) &&
+      !/NODE_ENV[\s\S]{0,50}production[\s\S]{0,100}seedAllData/.test(indexSource);
 
-    expect(hasProductionGuard).toBe(true);
+    // EXPECTED TO PASS on fixed code — seedAllData is either guarded or removed
+    expect(calledUnconditionally).toBe(false);
   });
 });
