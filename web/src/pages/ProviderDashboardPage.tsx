@@ -48,6 +48,7 @@ export default function ProviderDashboardPage() {
   const [tab, setTab] = useState<'overview' | 'services' | 'pending' | 'active' | 'history' | 'add'>('overview');
   const [form, setForm] = useState({ description: '', type: 'Transport', price: '' });
   const [msg, setMsg] = useState('');
+  const [loadError, setLoadError] = useState('');
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
@@ -55,7 +56,10 @@ export default function ProviderDashboardPage() {
   useEffect(() => {
     api.get('/api/provider/bookings', { headers })
       .then(r => setGrouped(r.data?.bookings ?? {}))
-      .catch(() => {});
+      .catch(e => {
+        const msg = e.response?.data?.error || e.message || 'Failed to load bookings';
+        setLoadError(`Bookings error (${e.response?.status ?? '?'}): ${msg}`);
+      });
     api.get('/api/provider/earnings', { headers })
       .then(r => setEarnings(r.data))
       .catch(() => {});
@@ -136,6 +140,15 @@ export default function ProviderDashboardPage() {
   return (
     <div>
       <p style={{ color: '#666', marginBottom: 20 }}>Welcome, {user.name || 'Provider'}! Manage your services and bookings.</p>
+
+      {loadError && (
+        <div style={{ background: '#fff5f5', border: '1px solid #e63946', borderRadius: 8, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: '#e63946' }}>
+          ⚠️ {loadError}
+          {loadError.includes('403') && (
+            <span> — Your account role may not be set to <strong>Service_Provider</strong>. Please log out and log in again selecting the correct role.</span>
+          )}
+        </div>
+      )}
 
       <div style={styles.tabs}>
         {[
@@ -238,6 +251,12 @@ export default function ProviderDashboardPage() {
 
       {tab === 'pending' && (
         <div style={{ marginTop: 8 }}>
+          {services.length === 0 && (
+            <div style={{ background: '#fff8f0', border: '1px solid #f4a261', borderRadius: 8, padding: 16, marginBottom: 12, fontSize: 13, color: '#b5541a' }}>
+              📋 You have no active services yet. Farmers can only book services you've listed.{' '}
+              <button style={{ ...styles.greenBtn, fontSize: 12 }} onClick={() => setTab('add')}>➕ Add a Service</button>
+            </div>
+          )}
           {pending.length === 0 ? <p style={{ color: '#888' }}>No pending bookings. All caught up!</p>
             : pending.map(b => <BookingCard key={b._id ?? b.id} b={b} showActions />)}
         </div>

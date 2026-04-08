@@ -35,10 +35,8 @@ async function bootstrap(): Promise<void> {
   await connectRedis();
   await startSchedulers();
 
-  // Skip seeding in production — avoids destroying real data on cold start
-  if (process.env.NODE_ENV !== 'production') {
-    await seedAllData();
-  }
+  // Seed demo data — safe to run always, uses upsert logic so it won't overwrite real data
+  await seedAllData();
 
   const server = app.listen(PORT, () => {
     console.log(`KisanServe API running on port ${PORT}`);
