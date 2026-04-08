@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { User } from '../models/User';
+import { Service } from '../models/Service';
+import { Booking } from '../models/Booking';
+import { Feedback } from '../models/Feedback';
+import { KnowledgeEntry } from '../models/KnowledgeEntry';
 
 export async function getAllServices(req: Request, res: Response): Promise<void> {
-  const { data, error } = await supabase
-    .from('services')
-    .select('*, users!provider_id(name, phone)')
-    .order('created_at', { ascending: false });
-  if (error) { res.status(500).json({ error: 'Failed to fetch services' }); return; }
-  res.json({ services: data });
+  const services = await Service.find().populate('provider_id', 'name phone').sort({ createdAt: -1 });
+  res.json({ services });
 }
 
 export async function updateUserStatus(req: Request, res: Response): Promise<void> {
@@ -15,92 +15,90 @@ export async function updateUserStatus(req: Request, res: Response): Promise<voi
   const { isActive } = req.body;
   if (typeof isActive !== 'boolean') { res.status(400).json({ error: 'isActive must be a boolean' }); return; }
 
-  const { data, error } = await supabase.from('users').update({ is_active: isActive }).eq('id', id).select().single();
-  if (error || !data) { res.status(404).json({ error: 'User not found' }); return; }
+  const user = await User.findByIdAndUpdate(id, { isActive }, { new: true });
+  if (!user) { res.status(404).json({ error: 'User not found' }); return; }
 
-  if (!isActive && data.role === 'Service_Provider') {
-    await supabase.from('bookings').update({ status: 'Cancelled', cancelled_by: 'system', cancellation_reason: 'Provider account deactivated' })
-      .eq('provider_id', id).in('status', ['Pending', 'Accepted']);
+  if (!isActive && user.role === 'Service_Provider') {
+    await Booking.updateMany(
+      { provider_id: id, status: { $in: ['Pending', 'Accepted'] } },
+      { status: 'Cancelled', cancelledBy: 'system', cancellationReason: 'Provider account deactivated' }
+    );
   }
-  res.json({ user: data });
+  res.json({ user });
 }
 
 export async function updateServiceStatus(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   const { status } = req.body;
-  if (!['active','pending','rejected'].includes(status)) { res.status(400).json({ error: 'Invalid status' }); return; }
+  if (!['active', 'pending', 'rejected'].includes(status)) { res.status(400).json({ error: 'Invalid status' }); return; }
 
-  const { data, error } = await supabase.from('services').update({ status }).eq('id', id).select().single();
-  if (error || !data) { res.status(404).json({ error: 'Service not found' }); return; }
-  res.json({ service: data });
+  const service = await Service.findByIdAndUpdate(id, { status }, { new: true });
+  if (!service) { res.status(404).json({ error: 'Service not found' }); return; }
+  res.json({ service });
 }
 
 export async function getFlaggedReviews(req: Request, res: Response): Promise<void> {
-  const { data, error } = await supabase.from('feedback').select('*, users!reviewer_id(name), users!reviewee_id(name)').eq('is_flagged', true);
-  if (error) { res.status(500).json({ error: 'Failed to fetch flagged reviews' }); return; }
-  res.json({ reviews: data });
+  const reviews = await Feedback.find({ is_flagged: true })
+    .populate('reviewer_id', 'name')
+    .populate('reviewee_id', 'name');
+  res.json({ reviews });
 }
 
 export async function updateReviewStatus(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   const { action } = req.body;
-  if (!['approve','remove'].includes(action)) { res.status(400).json({ error: 'action must be approve or remove' }); return; }
+  if (!['approve', 'remove'].includes(action)) { res.status(400).json({ error: 'action must be approve or remove' }); return; }
 
   if (action === 'remove') {
-    await supabase.from('feedback').delete().eq('id', id);
+    await Feedback.findByIdAndDelete(id);
     res.json({ message: 'Review removed' });
     return;
   }
-  const { data } = await supabase.from('feedback').update({ is_flagged: false }).eq('id', id).select().single();
-  res.json({ feedback: data });
+  const feedback = await Feedback.findByIdAndUpdate(id, { is_flagged: false }, { new: true });
+  res.json({ feedback });
 }
 
 export async function getAnalytics(req: Request, res: Response): Promise<void> {
-  const [farmers, providers, admins, bookingsByStatus, activeListings, revenue] = await Promise.all([
-    supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'Farmer'),
-    supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'Service_Provider'),
-    supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'Admin'),
-    supabase.from('bookings').select('status'),
-    supabase.from('services').select('category').eq('status', 'active'),
-    supabase.from('bookings').select('services(price)').eq('status', 'Completed'),
+  const [farmerCount, providerCount, adminCount, bookings, activeServices, completedBookings] = await Promise.all([
+    User.countDocuments({ role: 'Farmer' }),
+    User.countDocuments({ role: 'Service_Provider' }),
+    User.countDocuments({ role: 'Admin' }),
+    Booking.find({}, 'status'),
+    Service.find({ status: 'active' }, 'category'),
+    Booking.find({ status: 'Completed' }).populate('service_id', 'price'),
   ]);
 
   const bookingCounts: Record<string, number> = { Pending: 0, Accepted: 0, InProgress: 0, Completed: 0, Cancelled: 0 };
-  for (const b of bookingsByStatus.data ?? []) bookingCounts[b.status] = (bookingCounts[b.status] ?? 0) + 1;
+  for (const b of bookings) bookingCounts[b.status] = (bookingCounts[b.status] ?? 0) + 1;
 
   const categoryCounts: Record<string, number> = {};
-  for (const s of activeListings.data ?? []) categoryCounts[s.category] = (categoryCounts[s.category] ?? 0) + 1;
+  for (const s of activeServices) categoryCounts[s.category] = (categoryCounts[s.category] ?? 0) + 1;
 
-  const platformRevenue = (revenue.data ?? []).reduce((sum: number, b: any) => sum + (b.services?.price ?? 0), 0);
+  const platformRevenue = completedBookings.reduce((sum, b) => {
+    const svc = b.service_id as any;
+    return sum + (svc?.price ?? 0);
+  }, 0);
+
+  const flaggedAccounts = await User.find({ trust_score: { $lt: 2 } }, 'name phone role trust_score isActive');
 
   res.json({
-    totalUsersByRole: { Farmer: farmers.count ?? 0, Service_Provider: providers.count ?? 0, Admin: admins.count ?? 0 },
+    totalUsersByRole: { Farmer: farmerCount, Service_Provider: providerCount, Admin: adminCount },
     bookingsByStatus: bookingCounts,
     activeListingsByCategory: categoryCounts,
     platformRevenue,
+    flaggedAccounts,
   });
 }
 
-/**
- * GET /admin/bookings
- * All bookings sorted by newest first, with farmer/provider/service populated.
- */
 export async function getAllBookings(req: Request, res: Response): Promise<void> {
-  const { data, error } = await supabase
-    .from('bookings')
-    .select('*, users!farmer_id(name, phone), users!provider_id(name, phone), services(type, price)')
-    .order('created_at', { ascending: false })
+  const bookings = await Booking.find()
+    .populate('farmer_id', 'name phone')
+    .populate('provider_id', 'name phone')
+    .populate('service_id', 'type price')
+    .sort({ createdAt: -1 })
     .limit(200);
-  if (error) { res.status(500).json({ error: 'Failed to fetch bookings' }); return; }
-  res.json({ bookings: data });
+  res.json({ bookings });
 }
-
-/**
- * GET /admin/knowledge — list all custom knowledge entries
- * POST /admin/knowledge — add new entry
- * DELETE /admin/knowledge/:id — remove entry
- */
-import { KnowledgeEntry } from '../models/KnowledgeEntry';
 
 export async function getKnowledge(_req: Request, res: Response): Promise<void> {
   try {
@@ -122,7 +120,7 @@ export async function addKnowledge(req: Request, res: Response): Promise<void> {
       addedBy: 'Admin',
     });
     res.status(201).json({ entry });
-  } catch (err) { res.status(500).json({ error: 'Failed to add knowledge entry' }); }
+  } catch { res.status(500).json({ error: 'Failed to add knowledge entry' }); }
 }
 
 export async function deleteKnowledge(req: Request, res: Response): Promise<void> {

@@ -10,10 +10,6 @@ services:
         value: production
       - key: PORT
         value: 3000
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
       - key: MONGODB_URI
         sync: false
       - key: JWT_SECRET
@@ -27,8 +23,6 @@ services:
       - key: REDIS_URL
         sync: false
       - key: OPENAI_API_KEY
-        sync: false
-      - key: OPENROUTER_API_KEY
         sync: false
       - key: FIREBASE_PROJECT_ID
         sync: false

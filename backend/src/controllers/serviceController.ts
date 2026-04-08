@@ -1,32 +1,24 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { Service } from '../models/Service';
+import { Booking } from '../models/Booking';
 
 export async function listServices(req: Request, res: Response): Promise<void> {
-  const { lat, lng, radius, category, minPrice, maxPrice, minRating, sortBy } = req.query as Record<string, string>;
+  const { category, minPrice, maxPrice, minRating, sortBy } = req.query as Record<string, string>;
 
-  let query = supabase.from('services').select('*, users!provider_id(name, trust_score)').eq('status', 'active').eq('availability', true);
-
-  if (category) query = query.eq('category', category);
-  if (minPrice) query = query.gte('price', parseFloat(minPrice));
-  if (maxPrice) query = query.lte('price', parseFloat(maxPrice));
-  if (minRating) query = query.gte('average_rating', parseFloat(minRating));
-  if (sortBy === 'price') query = query.order('price', { ascending: true });
-  else if (sortBy === 'rating') query = query.order('average_rating', { ascending: false });
-
-  const { data, error } = await query;
-  if (error) { res.status(500).json({ error: 'Failed to fetch services' }); return; }
-
-  // Client-side geo filter if lat/lng provided
-  let services = data ?? [];
-  if (lat && lng) {
-    const latN = parseFloat(lat), lngN = parseFloat(lng), rad = parseFloat(radius ?? '50');
-    services = services.filter(s => {
-      if (!s.lat || !s.lng) return false;
-      const d = Math.sqrt(Math.pow(s.lat - latN, 2) + Math.pow(s.lng - lngN, 2)) * 111;
-      return d <= rad;
-    });
+  const filter: Record<string, unknown> = { status: 'active', availability: true };
+  if (category) filter.category = category;
+  if (minPrice || maxPrice) {
+    filter.price = {};
+    if (minPrice) (filter.price as any).$gte = parseFloat(minPrice);
+    if (maxPrice) (filter.price as any).$lte = parseFloat(maxPrice);
   }
+  if (minRating) filter.averageRating = { $gte: parseFloat(minRating) };
 
+  let query = Service.find(filter).populate('provider_id', 'name trust_score');
+  if (sortBy === 'price') query = query.sort({ price: 1 });
+  else if (sortBy === 'rating') query = query.sort({ averageRating: -1 });
+
+  const services = await query.lean();
   res.json({ services });
 }
 
@@ -36,41 +28,48 @@ export async function createService(req: Request, res: Response): Promise<void> 
 
   if (!type || !price) { res.status(400).json({ error: 'type and price are required' }); return; }
 
-  const { data, error } = await supabase.from('services').insert({
-    provider_id: user.userId, type, category: type,
-    price: parseFloat(price), availability: availability ?? true,
-    description, status: 'pending', lat, lng,
-  }).select().single();
+  const service = await Service.create({
+    provider_id: user.userId,
+    type,
+    category: type,
+    price: parseFloat(price),
+    availability: availability ?? true,
+    description,
+    status: 'pending',
+    location: {
+      type: 'Point',
+      coordinates: [parseFloat(lng ?? '0'), parseFloat(lat ?? '0')],
+    },
+  });
 
-  if (error) { res.status(500).json({ error: 'Failed to create service' }); return; }
-  res.status(201).json({ service: data });
+  res.status(201).json({ service });
 }
 
 export async function updateService(req: Request, res: Response): Promise<void> {
   const user = req.user!;
   const { id } = req.params;
-  const updates = req.body;
 
-  const { data: existing } = await supabase.from('services').select('provider_id').eq('id', id).single();
-  if (!existing) { res.status(404).json({ error: 'Service not found' }); return; }
-  if (existing.provider_id !== user.userId) { res.status(403).json({ error: 'Not authorized' }); return; }
+  const service = await Service.findById(id);
+  if (!service) { res.status(404).json({ error: 'Service not found' }); return; }
+  if (service.provider_id.toString() !== user.userId) { res.status(403).json({ error: 'Not authorized' }); return; }
 
-  const { data, error } = await supabase.from('services').update({ ...updates, updated_at: new Date() }).eq('id', id).select().single();
-  if (error) { res.status(500).json({ error: 'Failed to update service' }); return; }
-  res.json({ service: data });
+  Object.assign(service, req.body);
+  await service.save();
+  res.json({ service });
 }
 
 export async function deleteService(req: Request, res: Response): Promise<void> {
   const user = req.user!;
   const { id } = req.params;
 
-  const { data: existing } = await supabase.from('services').select('provider_id').eq('id', id).single();
-  if (!existing) { res.status(404).json({ error: 'Service not found' }); return; }
-  if (existing.provider_id !== user.userId) { res.status(403).json({ error: 'Not authorized' }); return; }
+  const service = await Service.findById(id);
+  if (!service) { res.status(404).json({ error: 'Service not found' }); return; }
+  if (service.provider_id.toString() !== user.userId) { res.status(403).json({ error: 'Not authorized' }); return; }
 
-  await supabase.from('bookings').update({ status: 'Cancelled', cancelled_by: 'system', cancellation_reason: 'Service was deleted' })
-    .eq('service_id', id).in('status', ['Pending', 'Accepted']);
-
-  await supabase.from('services').delete().eq('id', id);
+  await Booking.updateMany(
+    { service_id: id, status: { $in: ['Pending', 'Accepted'] } },
+    { status: 'Cancelled', cancelledBy: 'system', cancellationReason: 'Service was deleted' }
+  );
+  await service.deleteOne();
   res.json({ message: 'Service deleted' });
 }

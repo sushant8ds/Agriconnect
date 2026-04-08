@@ -1,14 +1,10 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { supabase } from '../config/supabase';
+import { User } from '../models/User';
 import { generateToken, generateRefreshToken, JwtPayload } from '../middleware/auth';
 
 const VALID_ROLES = ['Farmer', 'Service_Provider', 'Admin'];
-const VALID_LANGUAGES = ['en', 'hi', 'kn', 'mr', 'te', 'ta', 'ml'];
 
-/**
- * POST /auth/register
- */
 export async function register(req: Request, res: Response): Promise<void> {
   const { name, phone, password, role, location, languagePreference } = req.body;
 
@@ -17,36 +13,32 @@ export async function register(req: Request, res: Response): Promise<void> {
   if (!password || password.length < 6) { res.status(400).json({ error: 'Password must be at least 6 characters' }); return; }
   if (!role || !VALID_ROLES.includes(role)) { res.status(400).json({ error: `Role must be one of: ${VALID_ROLES.join(', ')}` }); return; }
 
-  // Normalize phone — add +91 if no country code
   const normalizedPhone = phone.trim().startsWith('+') ? phone.trim() : `+91${phone.trim().replace(/\D/g, '')}`;
 
-  const { data: existing } = await supabase.from('users').select('id').eq('phone', normalizedPhone).single();
+  const existing = await User.findOne({ phone: normalizedPhone });
   if (existing) { res.status(409).json({ error: 'An account with this phone already exists' }); return; }
 
-  const password_hash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 10);
 
-  const { data: user, error } = await supabase.from('users').insert({
+  const user = await User.create({
     name: name.trim(),
     phone: normalizedPhone,
-    password_hash,
+    passwordHash,
     role,
     location: location?.trim() ?? '',
-    language_preference: languagePreference ?? 'en',
-  }).select().single();
+    languagePreference: languagePreference ?? 'en',
+    isVerified: true,
+    trust_score: 5,
+  });
 
-  if (error || !user) { res.status(500).json({ error: 'Failed to create account' }); return; }
-
-  const payload: JwtPayload = { userId: user.id, role: user.role, phone: user.phone };
+  const payload: JwtPayload = { userId: user._id.toString(), role: user.role, phone: user.phone };
   res.status(201).json({
     accessToken: generateToken(payload),
     refreshToken: generateRefreshToken(payload),
-    user: { id: user.id, name: user.name, phone: user.phone, role: user.role, languagePreference: user.language_preference },
+    user: { id: user._id, name: user.name, phone: user.phone, role: user.role, languagePreference: user.languagePreference },
   });
 }
 
-/**
- * POST /auth/login
- */
 export async function login(req: Request, res: Response): Promise<void> {
   const { phone, password, role } = req.body;
 
@@ -54,26 +46,24 @@ export async function login(req: Request, res: Response): Promise<void> {
   if (!password) { res.status(400).json({ error: 'Password is required' }); return; }
   if (!role || !VALID_ROLES.includes(role)) { res.status(400).json({ error: 'Please select a role' }); return; }
 
-  // Normalize phone — add +91 if no country code
   const normalizedPhone = phone.trim().startsWith('+') ? phone.trim() : `+91${phone.trim().replace(/\D/g, '')}`;
 
-  const { data: user } = await supabase.from('users').select('*').eq('phone', normalizedPhone).single();
+  const user = await User.findOne({ phone: normalizedPhone });
   if (!user) { res.status(401).json({ error: 'No account found with this phone number' }); return; }
-  if (!user.is_active) { res.status(403).json({ error: 'Account is deactivated. Please contact support.' }); return; }
-
-  // Role must match
+  if (!user.isActive) { res.status(403).json({ error: 'Account is deactivated. Please contact support.' }); return; }
   if (user.role !== role) {
     res.status(403).json({ error: `This account is registered as ${user.role}, not ${role}. Please select the correct role.` });
     return;
   }
 
-  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!user.passwordHash) { res.status(401).json({ error: 'Invalid credentials' }); return; }
+  const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) { res.status(401).json({ error: 'Invalid phone or password' }); return; }
 
-  const payload: JwtPayload = { userId: user.id, role: user.role, phone: user.phone };
+  const payload: JwtPayload = { userId: user._id.toString(), role: user.role, phone: user.phone };
   res.status(200).json({
     accessToken: generateToken(payload),
     refreshToken: generateRefreshToken(payload),
-    user: { id: user.id, name: user.name, phone: user.phone, role: user.role, languagePreference: user.language_preference },
+    user: { id: user._id, name: user.name, phone: user.phone, role: user.role, languagePreference: user.languagePreference },
   });
 }

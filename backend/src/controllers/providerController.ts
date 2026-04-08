@@ -1,34 +1,35 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { Booking } from '../models/Booking';
+import { Service } from '../models/Service';
 
 export async function getProviderBookings(req: Request, res: Response): Promise<void> {
   const user = req.user!;
-  const { data, error } = await supabase.from('bookings')
-    .select('*, services(*), users!farmer_id(name, phone, trust_score)')
-    .eq('provider_id', user.userId).order('created_at', { ascending: false });
+  const bookings = await Booking.find({ provider_id: user.userId })
+    .populate('service_id', 'type price description')
+    .populate('farmer_id', 'name phone trust_score')
+    .sort({ createdAt: -1 });
 
-  if (error) { res.status(500).json({ error: 'Failed to fetch bookings' }); return; }
-
-  const grouped = { Pending: [], Accepted: [], InProgress: [], Completed: [], Cancelled: [] } as Record<string, unknown[]>;
-  for (const b of data ?? []) grouped[b.status]?.push(b);
+  const grouped: Record<string, unknown[]> = { Pending: [], Accepted: [], InProgress: [], Completed: [], Cancelled: [] };
+  for (const b of bookings) grouped[b.status]?.push(b);
 
   res.json({ bookings: grouped });
 }
 
 export async function getProviderEarnings(req: Request, res: Response): Promise<void> {
   const user = req.user!;
-  const { data, error } = await supabase.from('bookings')
-    .select('services(price)').eq('provider_id', user.userId).eq('status', 'Completed');
+  const completed = await Booking.find({ provider_id: user.userId, status: 'Completed' })
+    .populate('service_id', 'price');
 
-  if (error) { res.status(500).json({ error: 'Failed to fetch earnings' }); return; }
+  const totalRevenue = completed.reduce((sum, b) => {
+    const svc = b.service_id as any;
+    return sum + (svc?.price ?? 0);
+  }, 0);
 
-  const totalRevenue = (data ?? []).reduce((sum: number, b: any) => sum + (b.services?.price ?? 0), 0);
-  res.json({ totalRevenue, completedBookings: data?.length ?? 0 });
+  res.json({ totalRevenue, completedBookings: completed.length });
 }
 
 export async function getProviderServices(req: Request, res: Response): Promise<void> {
   const user = req.user!;
-  const { data, error } = await supabase.from('services').select('*').eq('provider_id', user.userId);
-  if (error) { res.status(500).json({ error: 'Failed to fetch services' }); return; }
-  res.json({ services: data });
+  const services = await Service.find({ provider_id: user.userId });
+  res.json({ services });
 }
