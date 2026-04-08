@@ -56,9 +56,22 @@ export default function AdminPanelPage() {
       api.get('/api/admin/bookings', { headers }).then(r => setRecentBookings(r.data?.bookings ?? [])).catch(() => {});
     };
     fetchData();
-    // Poll every 10 seconds for real-time updates
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+
+    // Real-time WebSocket updates
+    const wsBase = (import.meta.env.VITE_API_URL || '').replace(/^https?/, 'wss').replace(/^http/, 'ws');
+    const ws = new WebSocket(`${wsBase}/ws/events?token=${token}`);
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'booking_created' || msg.type === 'booking_updated') {
+        fetchData();
+      }
+    };
+    ws.onerror = () => {
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
+    };
+
+    return () => ws.close();
   }, []);
 
   async function approveService(id: string) {

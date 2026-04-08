@@ -4,7 +4,7 @@ import { Service } from '../models/Service';
 import { sendPushNotification } from '../services/notificationService';
 import { invalidateRecommendationCache } from './recommendationController';
 import { trustScoreQueue } from '../config/queue';
-import { closeTrackingRoom } from '../services/gpsTracker';
+import { closeTrackingRoom, broadcastBookingEvent } from '../services/gpsTracker';
 
 /**
  * POST /bookings
@@ -77,6 +77,9 @@ export async function createBooking(req: Request, res: Response): Promise<void> 
     'New Booking Request',
     `You have a new booking request for ${service.type} on ${bookingDate.toISOString().split('T')[0]}`
   );
+
+  // Broadcast real-time event to all connected clients
+  broadcastBookingEvent({ type: 'booking_created', booking });
 
   res.status(201).json({ booking });
 }
@@ -172,6 +175,9 @@ export async function updateBookingStatus(req: Request, res: Response): Promise<
   }
 
   await booking.save();
+
+  // Broadcast real-time status update to all connected clients
+  broadcastBookingEvent({ type: 'booking_updated', booking });
 
   // Send notifications
   if (newStatus === 'Accepted') {

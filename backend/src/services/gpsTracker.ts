@@ -229,3 +229,60 @@ export function setupGpsTracking(server: http.Server): void {
     });
   });
 }
+
+// ── Real-time booking event broadcast ────────────────────────────────────────
+// Clients connect to /ws/events?token=<jwt> to receive live booking updates.
+
+const eventClients = new Set<WebSocket>();
+
+/**
+ * Broadcast a booking event to all connected event clients.
+ * Called from bookingController after create/update.
+ */
+export function broadcastBookingEvent(event: { type: string; booking: object }): void {
+  const msg = JSON.stringify(event);
+  for (const client of eventClients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg);
+    }
+  }
+}
+
+/**
+ * Attach the /ws/events endpoint to the existing HTTP server.
+ * Must be called after setupGpsTracking so the upgrade handler is shared.
+ */
+export function setupEventStream(server: http.Server): void {
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (request, socket, head) => {
+    const reqUrl = request.url || '';
+    const parsedUrl = new URL(reqUrl, `http://${request.headers.host || 'localhost'}`);
+    if (parsedUrl.pathname !== '/ws/events') return;
+
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  });
+
+  wss.on('connection', (ws: WebSocket, request: http.IncomingMessage) => {
+    const reqUrl = request.url || '';
+    const parsedUrl = new URL(reqUrl, `http://${request.headers.host || 'localhost'}`);
+    const token = parsedUrl.searchParams.get('token');
+
+    if (!token) { ws.close(4001, 'Missing token'); return; }
+
+    try {
+      jwt.verify(token, JWT_SECRET);
+    } catch {
+      ws.close(4001, 'Invalid token');
+      return;
+    }
+
+    eventClients.add(ws);
+    ws.send(JSON.stringify({ type: 'connected' }));
+
+    ws.on('close', () => eventClients.delete(ws));
+    ws.on('error', () => eventClients.delete(ws));
+  });
+}

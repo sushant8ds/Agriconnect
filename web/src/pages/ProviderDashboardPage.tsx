@@ -48,9 +48,23 @@ export default function ProviderDashboardPage() {
         .catch(() => {});
     };
     fetchData();
-    // Poll every 10 seconds for real-time updates
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+
+    // Real-time WebSocket updates
+    const wsBase = (import.meta.env.VITE_API_URL || '').replace(/^https?/, 'wss').replace(/^http/, 'ws');
+    const ws = new WebSocket(`${wsBase}/ws/events?token=${token}`);
+    ws.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'booking_created' || msg.type === 'booking_updated') {
+        fetchData();
+      }
+    };
+    ws.onerror = () => {
+      // Fallback to polling if WebSocket fails
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
+    };
+
+    return () => ws.close();
   }, []);
 
   const allBookings = (Object.values(grouped) as Booking[][]).flat();

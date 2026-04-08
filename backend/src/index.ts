@@ -21,7 +21,7 @@ import { startSchedulers } from './jobs/schedulers';
 import routes from './routes/index';
 import { errorHandler } from './middleware/errorHandler';
 import { responseTime } from './middleware/responseTime';
-import { setupGpsTracking } from './services/gpsTracker';
+import { setupGpsTracking, setupEventStream } from './services/gpsTracker';
 import { sanitizeInput } from './middleware/sanitize';
 import { seedAllData } from './scripts/seedAll';
 
@@ -60,6 +60,7 @@ async function bootstrap(): Promise<void> {
   });
 
   setupGpsTracking(server);
+  setupEventStream(server);
 }
 
 bootstrap().catch((err) => {
