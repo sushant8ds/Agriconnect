@@ -56,10 +56,10 @@ export default function AdminPanelPage() {
   const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    axios.get('/api/admin/analytics', { headers }).then(r => setAnalytics(r.data)).catch(() => {});
-    axios.get('/api/admin/flagged-reviews', { headers }).then(r => setReviews(r.data?.reviews ?? [])).catch(() => {});
-    axios.get('/api/admin/services', { headers }).then(r => setServices(r.data?.services ?? [])).catch(() => {});
-    axios.get('/api/chatbot/knowledge', { headers }).then(r => setKb(r.data?.entries ?? [])).catch(() => {});
+    api.get('/api/admin/analytics', { headers }).then(r => setAnalytics(r.data)).catch(() => {});
+    api.get('/api/admin/flagged-reviews', { headers }).then(r => setReviews(r.data?.reviews ?? [])).catch(() => {});
+    api.get('/api/admin/services', { headers }).then(r => setServices(r.data?.services ?? [])).catch(() => {});
+    api.get('/api/chatbot/knowledge', { headers }).then(r => setKb(r.data?.entries ?? [])).catch(() => {});
   }, []);
 
   async function approveService(id: string) {
@@ -88,7 +88,6 @@ export default function AdminPanelPage() {
 
   const totalUsers = analytics ? Object.values(analytics.totalUsersByRole).reduce((a, b) => a + b, 0) : 0;
   const totalBookings = analytics ? Object.values(analytics.bookingsByStatus).reduce((a, b) => a + b, 0) : 0;
-  const pendingServices = services.filter(s => s.status === 'pending').length;
 
   return (
     <div>
@@ -97,7 +96,7 @@ export default function AdminPanelPage() {
       <div style={styles.tabs}>
         {[
           { key: 'overview', label: '📊 Overview' },
-          { key: 'services', label: `🛠️ Services (${services.filter(s=>s.status==='pending').length} pending)` },
+          { key: 'services', label: `🛠️ Services (${services.filter(s => s.status === 'pending').length} pending)` },
           { key: 'reviews', label: `🚩 Flagged Reviews (${reviews.length})` },
           { key: 'flagged', label: `⚠️ Flagged Users` },
           { key: 'knowledge', label: `🧠 Chatbot KB (${kb.length})` },
@@ -111,7 +110,6 @@ export default function AdminPanelPage() {
 
       {tab === 'overview' && analytics && (
         <div>
-          {/* Stats grid */}
           <div style={styles.grid4}>
             {[
               { icon: '👥', label: 'Total Users', value: totalUsers, color: '#2d6a4f' },
@@ -131,7 +129,6 @@ export default function AdminPanelPage() {
             ))}
           </div>
 
-          {/* Services by category */}
           <div style={styles.section}>
             <h3 style={styles.sectionTitle}>📦 Active Services by Category</h3>
             <div style={styles.grid3}>
@@ -144,7 +141,6 @@ export default function AdminPanelPage() {
             </div>
           </div>
 
-          {/* Booking status breakdown */}
           <div style={styles.section}>
             <h3 style={styles.sectionTitle}>📅 Booking Status Breakdown</h3>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -156,44 +152,12 @@ export default function AdminPanelPage() {
             </div>
           </div>
 
-          {/* Platform health */}
           <div style={styles.section}>
             <h3 style={styles.sectionTitle}>🖥️ Platform Health</h3>
-            {['Supabase PostgreSQL — Connected', 'KisanServe API — Running on port 3000', 'Web App — Running on port 5173'].map(s => (
+            {['Supabase PostgreSQL — Connected', 'KisanServe API — Running', 'Web App — Deployed'].map(s => (
               <p key={s} style={{ margin: '4px 0', fontSize: 14 }}>✅ {s}</p>
             ))}
           </div>
-        </div>
-      )}
-
-      {tab === 'bookings' && (
-        <div style={{ marginTop: 16 }}>
-          <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
-            Live feed of all bookings — auto-refreshes every 10 seconds. Shows when each booking was raised.
-          </p>
-          {recentBookings.length === 0 && <p style={{ color: '#888' }}>No bookings yet.</p>}
-          {recentBookings.map((b: any) => (
-            <div key={b._id} style={{ background: '#fff', borderRadius: 10, padding: 16, marginBottom: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderLeft: `4px solid ${STATUS_COLORS[b.status] ?? '#ccc'}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                    <span style={{ ...styles.statusPill, background: STATUS_COLORS[b.status] ?? '#ccc' }}>{b.status}</span>
-                    <strong style={{ fontSize: 14 }}>{TYPE_LABELS[b.service_id?.type ?? ''] ?? b.service_id?.type ?? 'Service'}</strong>
-                  </div>
-                  <p style={{ margin: '2px 0', fontSize: 13, color: '#666' }}>🧑‍🌾 Farmer: {b.farmer_id?.name || b.farmer_id?.phone || 'Unknown'}</p>
-                  <p style={{ margin: '2px 0', fontSize: 13, color: '#666' }}>🛠️ Provider: {b.provider_id?.name || b.provider_id?.phone || 'Unknown'}</p>
-                  <p style={{ margin: '2px 0', fontSize: 13, color: '#666' }}>📅 Scheduled: {new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {b.timeSlot ? `| ${b.timeSlot}` : ''}</p>
-                  <p style={{ margin: '2px 0', fontSize: 13, color: '#2d6a4f', fontWeight: 600 }}>💰 ₹{b.service_id?.price ?? '—'}</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0, fontSize: 11, color: '#aaa' }}>🕐 Raised</p>
-                  <p style={{ margin: 0, fontSize: 12, color: '#888', fontWeight: 600 }}>
-                    {b.createdAt ? new Date(b.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
@@ -296,7 +260,7 @@ export default function AdminPanelPage() {
                 setKbMsg('❌ Answer and at least one keyword or question is required'); return;
               }
               try {
-                const res = await axios.post('/api/chatbot/knowledge', {
+                const res = await api.post('/api/chatbot/knowledge', {
                   question: kbForm.question,
                   keywords: kbForm.keywords.split(',').map((k: string) => k.trim()).filter(Boolean),
                   answer: kbForm.answer,
@@ -327,7 +291,7 @@ export default function AdminPanelPage() {
                 <button style={{ ...styles.rejectBtn, padding: '4px 10px' }} onClick={async () => {
                   if (!window.confirm('Delete this entry?')) return;
                   try {
-                    await axios.delete(`/api/chatbot/knowledge/${i}`, { headers });
+                    await api.delete(`/api/chatbot/knowledge/${i}`, { headers });
                     setKb(prev => prev.filter((_, idx) => idx !== i));
                   } catch { alert('Failed to delete'); }
                 }}>✕</button>

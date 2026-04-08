@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 
 interface Message { role: 'user' | 'bot'; text: string; }
 
@@ -34,7 +34,7 @@ export default function ChatbotPage() {
     setMessages(m => [...m, { role: 'user', text: query }]);
     setLoading(true);
     try {
-      const res = await axios.post('/api/chatbot/query',
+      const res = await api.post('/api/chatbot/query',
         { query },
         { headers: { Authorization: `Bearer ${token}` } }
       );
