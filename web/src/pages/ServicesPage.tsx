@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import api from '../api/axios';
 
 interface Service {
-  id: string;
+  _id?: string;
+  id?: string;
   type: string;
   category: string;
   description: string;
@@ -53,7 +54,12 @@ export default function ServicesPage() {
           const list = r.data?.services ?? [];
           setServices(list);
           setFiltered(list);
-          cacheServices(list); // cache for offline use
+          cacheServices(list);
+          // Pre-populate default date for all services so booking works immediately
+          const tomorrow = new Date(Date.now() + 86400000).toISOString();
+          const defaults: Record<string, string> = {};
+          list.forEach((s: Service) => { const id = s._id ?? s.id ?? ''; if (id) defaults[id] = tomorrow; });
+          setBookingDate(defaults);
         })
         .catch(() => {
           const cached = getCachedServices();
@@ -92,14 +98,8 @@ export default function ServicesPage() {
 
   async function book(serviceId: string) {
     const token = localStorage.getItem('token');
-    const date = bookingDate[serviceId];
+    const date = bookingDate[serviceId] || new Date(Date.now() + 86400000).toISOString();
     const slot = timeSlot[serviceId] || '10:00-12:00';
-
-    // Fix 1: date is required
-    if (!date) {
-      alert('Please select a date before booking.');
-      return;
-    }
 
     if (!isOnline()) {
       enqueueBooking({ service_id: serviceId, date, timeSlot: slot });
@@ -164,8 +164,10 @@ export default function ServicesPage() {
       )}
 
       <div style={styles.grid}>
-        {filtered.map(s => (
-          <div key={s.id} style={styles.card}>
+        {filtered.map(s => {
+          const sid = s._id ?? s.id ?? '';
+          return (
+          <div key={sid} style={styles.card}>
             <div style={styles.cardHeader}>
               <span style={styles.icon}>{CATEGORY_ICONS[s.type] ?? CATEGORY_ICONS[s.category] ?? '📦'}</span>
               <span style={styles.categoryBadge}>{CATEGORY_LABELS[s.type] ?? s.type}</span>
@@ -193,28 +195,29 @@ export default function ServicesPage() {
 
             <p style={styles.price}>₹{s.price}</p>
 
-            {!booked[s.id] && (
+            {!booked[sid] && (
               <>
                 <input type="date" style={styles.input}
                   min={new Date().toISOString().split('T')[0]}
-                  defaultValue={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
-                  onChange={e => setBookingDate(d => ({ ...d, [s.id]: new Date(e.target.value).toISOString() }))} />
+                  value={bookingDate[sid] ? new Date(bookingDate[sid]).toISOString().split('T')[0] : new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                  onChange={e => setBookingDate(d => ({ ...d, [sid]: new Date(e.target.value).toISOString() }))} />
                 <select style={styles.input}
-                  value={timeSlot[s.id] || '10:00-12:00'}
-                  onChange={e => setTimeSlot(t => ({ ...t, [s.id]: e.target.value }))}>
+                  value={timeSlot[sid] || '10:00-12:00'}
+                  onChange={e => setTimeSlot(t => ({ ...t, [sid]: e.target.value }))}>
                   {TIME_SLOTS.map(t => <option key={t}>{t}</option>)}
                 </select>
               </>
             )}
 
             <button
-              style={booked[s.id] ? styles.bookedBtn : (!bookingDate[s.id] ? styles.disabledBtn : styles.bookBtn)}
-              onClick={() => book(s.id)}
-              disabled={booked[s.id] || !bookingDate[s.id]}>
-              {booked[s.id] ? '✓ Booked Successfully' : !bookingDate[s.id] ? 'Select a date first' : 'Book Now'}
+              style={booked[sid] ? styles.bookedBtn : styles.bookBtn}
+              onClick={() => book(sid)}
+              disabled={booked[sid]}>
+              {booked[sid] ? '✓ Booked Successfully' : 'Book Now'}
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
