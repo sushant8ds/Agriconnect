@@ -9,4 +9,7 @@ export default defineConfig({
       '/api': 'http://localhost:3000',
     },
   },
+  define: {
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || ''),
+  },
 });
