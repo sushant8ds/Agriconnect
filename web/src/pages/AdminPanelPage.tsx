@@ -42,15 +42,23 @@ export default function AdminPanelPage() {
   const [reviews, setReviews] = useState<FlaggedReview[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [fraudStats, setFraudStats] = useState<any>(null);
-  const [tab, setTab] = useState<'overview' | 'services' | 'reviews' | 'flagged' | 'fraud'>('overview');
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [tab, setTab] = useState<'overview' | 'bookings' | 'services' | 'reviews' | 'flagged' | 'fraud'>('overview');
   const token = localStorage.getItem('token');
   const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => {
-    api.get('/api/admin/analytics', { headers }).then(r => setAnalytics(r.data)).catch(() => {});
-    api.get('/api/admin/flagged-reviews', { headers }).then(r => setReviews(r.data?.reviews ?? [])).catch(() => {});
-    api.get('/api/services', { headers }).then(r => setServices(r.data?.services ?? [])).catch(() => {});
-    api.get('/api/admin/fraud-stats', { headers }).then(r => setFraudStats(r.data)).catch(() => {});
+    const fetchData = () => {
+      api.get('/api/admin/analytics', { headers }).then(r => setAnalytics(r.data)).catch(() => {});
+      api.get('/api/admin/flagged-reviews', { headers }).then(r => setReviews(r.data?.reviews ?? [])).catch(() => {});
+      api.get('/api/services', { headers }).then(r => setServices(r.data?.services ?? [])).catch(() => {});
+      api.get('/api/admin/fraud-stats', { headers }).then(r => setFraudStats(r.data)).catch(() => {});
+      api.get('/api/admin/bookings', { headers }).then(r => setRecentBookings(r.data?.bookings ?? [])).catch(() => {});
+    };
+    fetchData();
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   async function approveService(id: string) {
@@ -83,9 +91,9 @@ export default function AdminPanelPage() {
       <h2 style={{ color: '#2d6a4f' }}>⚙️ Platform Overview</h2>
 
       <div style={styles.tabs}>
-        {(['overview', 'services', 'reviews', 'flagged', 'fraud'] as const).map(t => (
+        {(['overview', 'bookings', 'services', 'reviews', 'flagged', 'fraud'] as const).map(t => (
           <button key={t} style={{ ...styles.tab, ...(tab === t ? styles.activeTab : {}) }} onClick={() => setTab(t)}>
-            {t === 'overview' ? '📊 Overview' : t === 'services' ? `🛠️ Services (${pendingServices} pending)` : t === 'reviews' ? `🚩 Flagged Reviews (${reviews.length})` : t === 'flagged' ? `⚠️ Flagged Users (${analytics?.flaggedAccounts?.length ?? 0})` : `🔍 Fraud Detection (${fraudStats?.totalFlagged ?? 0})`}
+            {t === 'overview' ? '📊 Overview' : t === 'bookings' ? `📋 Live Bookings (${recentBookings.length})` : t === 'services' ? `🛠️ Services (${pendingServices} pending)` : t === 'reviews' ? `🚩 Flagged Reviews (${reviews.length})` : t === 'flagged' ? `⚠️ Flagged Users (${analytics?.flaggedAccounts?.length ?? 0})` : `🔍 Fraud Detection (${fraudStats?.totalFlagged ?? 0})`}
           </button>
         ))}
       </div>
@@ -144,6 +152,37 @@ export default function AdminPanelPage() {
               <p key={s} style={{ margin: '4px 0', fontSize: 14 }}>✅ {s}</p>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === 'bookings' && (
+        <div style={{ marginTop: 16 }}>
+          <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
+            Live feed of all bookings — auto-refreshes every 10 seconds. Shows when each booking was raised.
+          </p>
+          {recentBookings.length === 0 && <p style={{ color: '#888' }}>No bookings yet.</p>}
+          {recentBookings.map((b: any) => (
+            <div key={b._id} style={{ background: '#fff', borderRadius: 10, padding: 16, marginBottom: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', borderLeft: `4px solid ${STATUS_COLORS[b.status] ?? '#ccc'}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ ...styles.statusPill, background: STATUS_COLORS[b.status] ?? '#ccc' }}>{b.status}</span>
+                    <strong style={{ fontSize: 14 }}>{TYPE_LABELS[b.service_id?.type ?? ''] ?? b.service_id?.type ?? 'Service'}</strong>
+                  </div>
+                  <p style={{ margin: '2px 0', fontSize: 13, color: '#666' }}>🧑‍🌾 Farmer: {b.farmer_id?.name || b.farmer_id?.phone || 'Unknown'}</p>
+                  <p style={{ margin: '2px 0', fontSize: 13, color: '#666' }}>🛠️ Provider: {b.provider_id?.name || b.provider_id?.phone || 'Unknown'}</p>
+                  <p style={{ margin: '2px 0', fontSize: 13, color: '#666' }}>📅 Scheduled: {new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {b.timeSlot ? `| ${b.timeSlot}` : ''}</p>
+                  <p style={{ margin: '2px 0', fontSize: 13, color: '#2d6a4f', fontWeight: 600 }}>💰 ₹{b.service_id?.price ?? '—'}</p>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, fontSize: 11, color: '#aaa' }}>🕐 Raised</p>
+                  <p style={{ margin: 0, fontSize: 12, color: '#888', fontWeight: 600 }}>
+                    {b.createdAt ? new Date(b.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

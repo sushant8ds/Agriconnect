@@ -226,3 +226,22 @@ export async function getAnalytics(req: Request, res: Response): Promise<void> {
     flaggedAccounts,
   });
 }
+
+/**
+ * GET /admin/bookings
+ * All bookings sorted by newest first, with farmer/provider/service populated.
+ */
+export async function getAllBookings(req: Request, res: Response): Promise<void> {
+  try {
+    const bookings = await Booking.find()
+      .populate('farmer_id', 'name phone')
+      .populate('provider_id', 'name phone')
+      .populate('service_id', 'type price')
+      .sort({ createdAt: -1 })
+      .limit(200)
+      .lean();
+    res.json({ bookings });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+}

@@ -8,6 +8,7 @@ interface Booking {
   status: string;
   date: string;
   timeSlot?: string;
+  createdAt?: string;
 }
 
 interface Earnings {
@@ -38,12 +39,18 @@ export default function ProviderDashboardPage() {
   const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
 
   useEffect(() => {
-    api.get('/api/provider/bookings', { headers })
-      .then(r => setGrouped(r.data ?? {}))
-      .catch(() => {});
-    api.get('/api/provider/earnings', { headers })
-      .then(r => setEarnings(r.data))
-      .catch(() => {});
+    const fetchData = () => {
+      api.get('/api/provider/bookings', { headers })
+        .then(r => setGrouped(r.data ?? {}))
+        .catch(() => {});
+      api.get('/api/provider/earnings', { headers })
+        .then(r => setEarnings(r.data))
+        .catch(() => {});
+    };
+    fetchData();
+    // Poll every 10 seconds for real-time updates
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const allBookings = (Object.values(grouped) as Booking[][]).flat();
@@ -90,6 +97,11 @@ export default function ProviderDashboardPage() {
             <p style={styles.sub}>👤 {b.farmer_id?.name || b.farmer_id?.phone || 'Farmer'}</p>
             <p style={styles.sub}>📅 {new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {b.timeSlot ? `| ${b.timeSlot}` : ''}</p>
             <p style={styles.sub}>💰 ₹{b.service_id?.price ?? '—'}</p>
+            {b.createdAt && (
+              <p style={{ ...styles.sub, color: '#aaa', fontSize: 11 }}>
+                🕐 Raised: {new Date(b.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
           </div>
           {showActions && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

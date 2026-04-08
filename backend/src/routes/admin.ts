@@ -7,6 +7,7 @@ import {
   getFlaggedReviews,
   updateReviewStatus,
   getAnalytics,
+  getAllBookings,
 } from '../controllers/adminController';
 import { getFraudStats } from '../services/fraudDetector';
 
@@ -19,6 +20,7 @@ router.patch('/services/:id', updateServiceStatus);
 router.get('/flagged-reviews', getFlaggedReviews);
 router.patch('/reviews/:id', updateReviewStatus);
 router.get('/analytics', getAnalytics);
+router.get('/bookings', getAllBookings);
 router.get('/fraud-stats', async (req, res) => {
   try {
     const stats = await getFraudStats();
